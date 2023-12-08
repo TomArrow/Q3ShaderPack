@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Q3ShaderPack": {
+      "commandName": "Project",
+      "commandLineArgs": "\"mohdm1_clean3.map\" \"C:\\MOHAAWC\\main_extracted\\main\\scripts\""
+    }
+  }
+}
