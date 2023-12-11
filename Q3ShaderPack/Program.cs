@@ -13,10 +13,16 @@ namespace Q3ShaderPack
         {
             string mapFile = args[0];
             string shaderDirectory = args[1];
+            string shaderExcludeDirectory = args.Length > 2 ? args[2] : null;
             List<string> shadFiles = new List<string>();
+            List<string> shadExcludeFiles = new List<string>();
             shadFiles.AddRange(crawlDirectory(shaderDirectory));
-            Dictionary<string, string> shaderFiles = new Dictionary<string, string>();
+            if(shaderExcludeDirectory != null) { 
+                shadExcludeFiles.AddRange(crawlDirectory(shaderExcludeDirectory));
+            }
+            //Dictionary<string, string> shaderFiles = new Dictionary<string, string>();
             Dictionary<string, string> parsedShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
+            Dictionary<string, string> parsedExcludeShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
             foreach (string file in shadFiles)
             {
                 string basename = Path.GetFileNameWithoutExtension(file);
@@ -24,7 +30,17 @@ namespace Q3ShaderPack
                 if (extension == ".shader")
                 {
                     ParseShader(file, ref parsedShaders);
-                    shaderFiles[basename] = file;
+                    //shaderFiles[basename] = file;
+                }
+            }
+            foreach (string file in shadExcludeFiles)
+            {
+                string basename = Path.GetFileNameWithoutExtension(file);
+                string extension = Path.GetExtension(file).ToLowerInvariant();
+                if (extension == ".shader")
+                {
+                    ParseShader(file, ref parsedExcludeShaders);
+                    //shaderFiles[basename] = file;
                 }
             }
 
@@ -37,7 +53,7 @@ namespace Q3ShaderPack
 
             foreach (string shader in usedShaders)
             {
-                if (parsedShaders.ContainsKey(shader))
+                if (parsedShaders.ContainsKey(shader) && !parsedExcludeShaders.ContainsKey(shader))
                 {
                     sb.Append("\n");
                     sb.Append(shader);
