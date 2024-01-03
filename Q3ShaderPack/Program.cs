@@ -146,10 +146,14 @@ namespace Q3ShaderPack
                     shaderImages.Add(shader);
                 }
 
-                HashSet<string> extensionLessShaderImages = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+                HashSet<string> extensionLessFiles = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
                 foreach (string shader in shaderImages)
                 {
-                    extensionLessShaderImages.Add(Path.Combine(Path.GetDirectoryName(shader),Path.GetFileNameWithoutExtension(shader)));
+                    extensionLessFiles.Add(Path.Combine(Path.GetDirectoryName(shader),Path.GetFileNameWithoutExtension(shader)));
+                }
+                foreach (string file in mapModels)
+                {
+                    extensionLessFiles.Add(Path.Combine(Path.GetDirectoryName(file),Path.GetFileNameWithoutExtension(file)));
                 }
 
                 List<string> files = new List<string>();
@@ -173,7 +177,7 @@ namespace Q3ShaderPack
                 {
                     string normalizedPath = Path.GetRelativePath(Path.Combine(shaderDirectory, ".."), file);
                     string extensionLessName = Path.Combine(Path.GetDirectoryName(normalizedPath), Path.GetFileNameWithoutExtension(normalizedPath));
-                    if ((extensionLessShaderImages.Contains(extensionLessName) || mapModels.Contains(extensionLessName)) && !excludeFilesNormalized.Contains(normalizedPath))
+                    if ((extensionLessFiles.Contains(extensionLessName)) && !excludeFilesNormalized.Contains(normalizedPath))
                     {
                         filesToCopy.Add(file);
                     }
