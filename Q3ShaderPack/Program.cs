@@ -278,7 +278,7 @@ namespace Q3ShaderPack
         private static void ParseShader(string file, ref Dictionary<string, string> shaderData)
         {
             string shaderText = File.ReadAllText(file);
-            var otherMatches = PcreRegex.Matches(shaderText, @"(?<shaderName>[-_\w\d\/]+)?\s+(?:\/\/[^\n]+\s*)?(?<shaderBody>\{(?:[^\{\}]|(?R))*\})");
+            var otherMatches = PcreRegex.Matches(shaderText, @"(?:^|\n)\s*(?<shaderName>(?:[-_\w\d]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>\{(?:[^\{\}]|(?R))*\})");
             foreach (var match in otherMatches)
             {
                 shaderData[match.Groups["shaderName"].Value] = match.Groups["shaderBody"].Value;
