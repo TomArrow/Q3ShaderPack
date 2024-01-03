@@ -2,7 +2,7 @@
   "profiles": {
     "Q3ShaderPack": {
       "commandName": "Project",
-      "commandLineArgs": "\"mohdm1_clean3.map\" \"C:\\MOHAAWC\\main_extracted\\main\\scripts\""
+      "commandLineArgs": "\"poon-fragmentary_c.bsp\" \"poon-fragmentary_converted.map\" \"C:\\Q3 assets\\base_work\\baseq3\\scripts\" \"C:\\JKA\\GameData\\base-extracted\\base\\shaders\" \"out:out\""
     }
   }
 }
