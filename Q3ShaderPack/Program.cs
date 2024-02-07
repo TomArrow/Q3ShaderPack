@@ -9,8 +9,19 @@ namespace Q3ShaderPack
 {
     class Program
     {
+        class ShaderDupe
+        {
+            public List<string> files = new List<string>();
+            public List<string> bodies = new List<string>();
+            public string chosenFile = null;
+            public bool used = false;
+        }
+
+        // TODO Detect non power of 2 tex
+        // TODO Detect not found files.
         static void Main(string[] args)
         {
+            // Todo show shader dupes
             int argIndex = 0;
             int folderIndex = 0;
             string bspFile = null;
@@ -18,10 +29,15 @@ namespace Q3ShaderPack
             string shaderDirectory = null;
             string shaderExcludeDirectory = null;
             string outputDirectory = null;
+            bool ignoreShaderList = false;
             while (argIndex < args.Length)
             {
                 string argument = args[argIndex++];
-                if (argument.EndsWith(".bsp", StringComparison.InvariantCultureIgnoreCase))
+                if(argument.Equals("-ignoreShaderList",StringComparison.InvariantCultureIgnoreCase))
+                {
+                    ignoreShaderList = true;
+                }
+                else if (argument.EndsWith(".bsp", StringComparison.InvariantCultureIgnoreCase))
                 {
                     bspFile = argument;
                 } else if (argument.EndsWith(".map", StringComparison.InvariantCultureIgnoreCase))
@@ -61,12 +77,37 @@ namespace Q3ShaderPack
                     }
                 }
             }
+
+            Dictionary<string, ShaderDupe> shaderDuplicates = new Dictionary<string, ShaderDupe>(StringComparer.InvariantCultureIgnoreCase);
+
+            HashSet<string> shaderListWhitelist = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
             List<string> shadFiles = new List<string>();
             List<string> shadExcludeFiles = new List<string>();
+
             shadFiles.AddRange(crawlDirectory(shaderDirectory));
             if(shaderExcludeDirectory != null) { 
                 shadExcludeFiles.AddRange(crawlDirectory(shaderExcludeDirectory));
             }
+
+            // find shaderlist
+            if (!ignoreShaderList)
+            {
+                foreach (string file in shadFiles)
+                {
+                    string basename = Path.GetFileNameWithoutExtension(file);
+                    string extension = Path.GetExtension(file).ToLowerInvariant();
+                    if (basename.ToLowerInvariant().Trim() == "shaderlist" && extension == ".txt")
+                    {
+                        string[] allowedShaderFiles = File.ReadAllLines(file);
+                        foreach(string allowedShaderFile in allowedShaderFiles)
+                        {
+                            shaderListWhitelist.Add(allowedShaderFile);
+                        }
+
+                    }
+                }
+            }
+
             //Dictionary<string, string> shaderFiles = new Dictionary<string, string>();
             Dictionary<string, string> parsedShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
             Dictionary<string, string> parsedExcludeShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
@@ -76,7 +117,13 @@ namespace Q3ShaderPack
                 string extension = Path.GetExtension(file).ToLowerInvariant();
                 if (extension == ".shader")
                 {
-                    ParseShader(file, ref parsedShaders);
+                    if((ignoreShaderList || shaderListWhitelist.Count == 0 || shaderListWhitelist.Contains(basename)))
+                    {
+                        ParseShader(file, ref parsedShaders, shaderDuplicates);
+                    } else
+                    {
+                        Console.WriteLine($"Skipping {file}, not in shaderlist.txt");
+                    }
                     //shaderFiles[basename] = file;
                 }
             }
@@ -120,18 +167,65 @@ namespace Q3ShaderPack
             {
                 if (parsedShaders.ContainsKey(shader) && !parsedExcludeShaders.ContainsKey(shader))
                 {
+                    // Check if : variants (:q3map) exist.
+                    string q3mapVariant = $"{shader}:q3map";
+                    if (parsedShaders.ContainsKey(q3mapVariant) && !parsedExcludeShaders.ContainsKey(q3mapVariant))
+                    {
+                        sb.Append("\n");
+                        sb.Append(q3mapVariant);
+                        sb.Append("\n");
+                        sb.Append(parsedShaders[q3mapVariant]);
+                        sb.Append("\n");
+                        sb.Append("\n");
+                        shaderDuplicates[q3mapVariant].used = true;
+                    }
+
                     sb.Append("\n");
                     sb.Append(shader);
                     sb.Append("\n");
                     sb.Append(parsedShaders[shader]);
                     sb.Append("\n");
                     sb.Append("\n");
+                    shaderDuplicates[shader].used = true;
                 }
             }
 
             string compiledShaders = sb.ToString();
 
+            StringBuilder dupesInfoString = new StringBuilder();
+            int dupeCount = 0;
+            foreach(var kvp in shaderDuplicates)
+            {
+                if(kvp.Value.used && kvp.Value.files.Count > 1)
+                {
+                    bool allSame = true;
+                    int hashCompare = kvp.Value.bodies[0].GetHashCode();
+                    for (int i = 1; i < kvp.Value.bodies.Count; i++)
+                    {
+                        if (kvp.Value.bodies[i].GetHashCode() != hashCompare)
+                        {
+                            allSame = false;
+                            break;
+                        }
+                    }
 
+                    if (!allSame)
+                    {
+                        dupesInfoString.Append($"\n\n\n\n\n{kvp.Key}:\n");
+                        for (int i = 0; i < kvp.Value.files.Count; i++)
+                        {
+                            int bodyHash = kvp.Value.bodies[i].GetHashCode();
+                            dupesInfoString.Append($"\n\n{kvp.Value.files[i]} (hash {bodyHash}, used: {kvp.Value.used}):\n{kvp.Value.bodies[i]}\n");
+                        }
+                        dupeCount++;
+                    }
+                }
+            }
+            if(dupesInfoString.Length > 0)
+            {
+                Console.WriteLine($"{dupeCount} shader dupes found.");
+                File.WriteAllText("shaderDupesDebug.txt",dupesInfoString.ToString());
+            }
 
             if (outputDirectory != null)
             {
@@ -275,13 +369,30 @@ namespace Q3ShaderPack
             return images;
         }
 
-        private static void ParseShader(string file, ref Dictionary<string, string> shaderData)
+        private static void ParseShader(string file, ref Dictionary<string, string> shaderData, Dictionary<string, ShaderDupe> shaderDuplicates = null)
         {
             string shaderText = File.ReadAllText(file);
-            var otherMatches = PcreRegex.Matches(shaderText, @"(?:^|\n)\s*(?<shaderName>(?:[-_\w\d]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>\{(?:[^\{\}]|(?R))*\})");
+
+            // WIP: (?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>(?:\n\s*\{)(?:(?:\/\/[^\n]*)|[^\{\}]|(?R))*(?:\n\s*\}))
+            // WIP: (?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>(?:[\n\r]+\s*\{)(?:(?:\/\/[^\n\r]*)|[^\{\}\/]|(?<!\/)\/(?!\/)|(?R))*(?:[\n\r]+\s*\}))
+            // WIP: (?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>(?:\{)(?:(?:\/\/[^\n\r]*+)|[^\{\}\/]|(?<!\/)\/(?!\/)|(?R))*(?:\}))
+            // old : var otherMatches = PcreRegex.Matches(shaderText, @"(?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>\{(?:[^\{\}]|(?R))*\})");
+            var otherMatches = PcreRegex.Matches(shaderText, @"(?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>(?:\{)(?:(?:\/\/[^\n\r]*+)|[^\{\}\/]|(?<!\/)\/(?!\/)|(?R))*(?:\}))");
             foreach (var match in otherMatches)
             {
-                shaderData[match.Groups["shaderName"].Value] = match.Groups["shaderBody"].Value;
+                string shaderName = match.Groups["shaderName"].Value;
+                string shaderBody = match.Groups["shaderBody"].Value;
+                shaderData[shaderName] = shaderBody;
+                if(shaderDuplicates != null)
+                {
+                    if (!shaderDuplicates.ContainsKey(shaderName))
+                    {
+                        shaderDuplicates[shaderName] = new ShaderDupe();
+                    }
+                    shaderDuplicates[shaderName].chosenFile = file;
+                    shaderDuplicates[shaderName].files.Add(file);
+                    shaderDuplicates[shaderName].bodies.Add(shaderBody);
+                }
             }
 
         }
