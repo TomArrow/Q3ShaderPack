@@ -80,7 +80,7 @@ namespace Q3ShaderPack
 
             Dictionary<string, ShaderDupe> shaderDuplicates = new Dictionary<string, ShaderDupe>(StringComparer.InvariantCultureIgnoreCase);
 
-            HashSet<string> shaderListWhitelist = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+            List<string> shaderListWhitelist = new List<string>();
             List<string> shadFiles = new List<string>();
             List<string> shadExcludeFiles = new List<string>();
 
@@ -101,26 +101,48 @@ namespace Q3ShaderPack
                         string[] allowedShaderFiles = File.ReadAllLines(file);
                         foreach(string allowedShaderFile in allowedShaderFiles)
                         {
-                            shaderListWhitelist.Add(allowedShaderFile);
+                            shaderListWhitelist.Add(allowedShaderFile.Trim());
                         }
 
                     }
                 }
             }
 
+            shadFiles.Sort(); // Sort shaders alphabetically
+
             //Dictionary<string, string> shaderFiles = new Dictionary<string, string>();
             Dictionary<string, string> parsedShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
             Dictionary<string, string> parsedExcludeShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
+            if (shaderListWhitelist.Count > 0 && !ignoreShaderList)
+            {
+                // We want stuff to be read in the same order as shaderlist
+                // First shader found = kept.
+                foreach(string whitelistedShader in shaderListWhitelist)
+                {
+
+                    foreach (string file in shadFiles)
+                    {
+                        string basename = Path.GetFileNameWithoutExtension(file);
+                        string extension = Path.GetExtension(file).ToLowerInvariant();
+                        if (extension == ".shader" && basename.Equals(whitelistedShader,StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            ParseShader(file, ref parsedShaders, shaderDuplicates);
+                        }
+                    }
+                }
+            }
+
             foreach (string file in shadFiles)
             {
                 string basename = Path.GetFileNameWithoutExtension(file);
                 string extension = Path.GetExtension(file).ToLowerInvariant();
                 if (extension == ".shader")
                 {
-                    if((ignoreShaderList || shaderListWhitelist.Count == 0 || shaderListWhitelist.Contains(basename)))
+                    if ((ignoreShaderList || shaderListWhitelist.Count == 0 || shaderListWhitelist.Contains(basename)))
                     {
-                        ParseShader(file, ref parsedShaders, shaderDuplicates);
-                    } else
+                        //ParseShader(file, ref parsedShaders, shaderDuplicates); // already done above
+                    }
+                    else
                     {
                         Console.WriteLine($"Skipping {file}, not in shaderlist.txt");
                     }
@@ -377,21 +399,28 @@ namespace Q3ShaderPack
             // WIP: (?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>(?:[\n\r]+\s*\{)(?:(?:\/\/[^\n\r]*)|[^\{\}\/]|(?<!\/)\/(?!\/)|(?R))*(?:[\n\r]+\s*\}))
             // WIP: (?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>(?:\{)(?:(?:\/\/[^\n\r]*+)|[^\{\}\/]|(?<!\/)\/(?!\/)|(?R))*(?:\}))
             // old : var otherMatches = PcreRegex.Matches(shaderText, @"(?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>\{(?:[^\{\}]|(?R))*\})");
-            var otherMatches = PcreRegex.Matches(shaderText, @"(?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>(?:\{)(?:(?:\/\/[^\n\r]*+)|[^\{\}\/]|(?<!\/)\/(?!\/)|(?R))*(?:\}))");
-            foreach (var match in otherMatches)
+            var matches = PcreRegex.Matches(shaderText, @"(?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>(?:\{)(?:(?:\/\/[^\n\r]*+)|[^\{\}\/]|(?<!\/)\/(?!\/)|(?R))*(?:\}))");
+            foreach (var match in matches)
             {
                 string shaderName = match.Groups["shaderName"].Value;
                 string shaderBody = match.Groups["shaderBody"].Value;
-                shaderData[shaderName] = shaderBody;
                 if(shaderDuplicates != null)
                 {
                     if (!shaderDuplicates.ContainsKey(shaderName))
                     {
                         shaderDuplicates[shaderName] = new ShaderDupe();
                     }
-                    shaderDuplicates[shaderName].chosenFile = file;
+                    if(shaderDuplicates[shaderName].files.Count == 0)
+                    {
+                        // The main shader we use is the first we find.
+                        shaderData[shaderName] = shaderBody;
+                        shaderDuplicates[shaderName].chosenFile = file;
+                    }
                     shaderDuplicates[shaderName].files.Add(file);
                     shaderDuplicates[shaderName].bodies.Add(shaderBody);
+                } else
+                {
+                    shaderData[shaderName] = shaderBody;
                 }
             }
 
