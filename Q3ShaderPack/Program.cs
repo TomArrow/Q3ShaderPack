@@ -140,9 +140,13 @@ namespace Q3ShaderPack
                 string extension = Path.GetExtension(file).ToLowerInvariant();
                 if (extension == ".shader")
                 {
-                    if ((ignoreShaderList || shaderListWhitelist.Count == 0 || shaderListWhitelist.Contains(basename)))
+                    if ((ignoreShaderList || shaderListWhitelist.Count == 0))
                     {
-                        //ParseShader(file, ref parsedShaders, shaderDuplicates); // already done above
+                        ParseShader(file, ref parsedShaders, shaderDuplicates);
+                    }
+                    else if (shaderListWhitelist.Contains(basename))
+                    {
+                        // nuthin, already done above
                     }
                     else
                     {
