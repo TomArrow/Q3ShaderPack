@@ -24,8 +24,10 @@ namespace Q3ShaderPack
             // Todo show shader dupes
             int argIndex = 0;
             int folderIndex = 0;
-            string bspFile = null;
-            string mapFile = null;
+            List<string> bspFiles = new List<string>();
+            List<string> mapFiles = new List<string>();
+            //string bspFile = null;
+            //string mapFile = null;
             string shaderDirectory = null;
             string shaderExcludeDirectory = null;
             string outputDirectory = null;
@@ -39,10 +41,10 @@ namespace Q3ShaderPack
                 }
                 else if (argument.EndsWith(".bsp", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    bspFile = argument;
+                    bspFiles.Add(argument);
                 } else if (argument.EndsWith(".map", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    mapFile = argument;
+                    mapFiles.Add(argument);
                 }
                 else
                 {
@@ -161,7 +163,7 @@ namespace Q3ShaderPack
             }
             
             HashSet<string> usedShadersHashSet = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
-            if (mapFile != null)
+            foreach (string mapFile in mapFiles)
             {
                 HashSet<string> mapShaders = ParseMap(mapFile);
                 foreach(string shader in mapShaders)
@@ -169,7 +171,7 @@ namespace Q3ShaderPack
                     usedShadersHashSet.Add(shader);
                 }
             }
-            if (bspFile != null)
+            foreach (string bspFile in bspFiles)
             {
                 string[] bspShaders = BSPHelper.GetShaders(bspFile);
                 foreach(string shader in bspShaders)
@@ -252,10 +254,18 @@ namespace Q3ShaderPack
             if (outputDirectory != null)
             {
                 Directory.CreateDirectory(Path.Combine(outputDirectory,"shaders"));
-                File.WriteAllText(Path.Combine(outputDirectory, "shaders",$"{Path.GetFileNameWithoutExtension(bspFile == null ? mapFile : bspFile)}.shader"), compiledShaders);
+                File.WriteAllText(Path.Combine(outputDirectory, "shaders",$"{Path.GetFileNameWithoutExtension(bspFiles.Count == 0 ? mapFiles[0] : bspFiles[0])}.shader"), compiledShaders);
 
                 // Copy special image files like lightImage and editorimage and .md3 models and audio files from .map alongside normal images
-                HashSet<string> mapModels = mapFile == null ? new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) : ParseMapModels(mapFile);
+                HashSet<string> mapModels = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+                foreach(string mapFile in mapFiles)
+                {
+                    var mapModelsHere = ParseMapModels(mapFile);
+                    foreach(string mapModelHere in mapModelsHere)
+                    {
+                        mapModels.Add(mapModelHere);
+                    }
+                }
                 HashSet<string> shaderImages = ParseShaderImages(compiledShaders);
                 foreach (string shader in usedShaders)
                 {
