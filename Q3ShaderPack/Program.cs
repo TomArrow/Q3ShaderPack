@@ -28,8 +28,12 @@ namespace Q3ShaderPack
             List<string> mapFiles = new List<string>();
             //string bspFile = null;
             //string mapFile = null;
-            string shaderDirectory = null;
-            string shaderExcludeDirectory = null;
+            //string shaderDirectory = null;
+            //string shaderExcludeDirectory = null;
+
+            List<string> shaderDirectories = new List<string>();
+            List<string> shaderExcludeDirectories = new List<string>();
+
             string outputDirectory = null;
             bool ignoreShaderList = false;
             while (argIndex < args.Length)
@@ -68,10 +72,10 @@ namespace Q3ShaderPack
                     }
                     switch (folderType) {
                         case 0:
-                            shaderDirectory = argument;
+                            shaderDirectories.Add(argument);
                             break;
                         case 1:
-                            shaderExcludeDirectory = argument;
+                            shaderExcludeDirectories.Add(argument);
                             break;
                         case 2:
                             outputDirectory = argument;
@@ -81,78 +85,87 @@ namespace Q3ShaderPack
             }
 
             Dictionary<string, ShaderDupe> shaderDuplicates = new Dictionary<string, ShaderDupe>(StringComparer.InvariantCultureIgnoreCase);
+            Dictionary<string, string> parsedShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
+            Dictionary<string, string> parsedExcludeShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
 
-            List<string> shaderListWhitelist = new List<string>();
-            List<string> shadFiles = new List<string>();
+
             List<string> shadExcludeFiles = new List<string>();
-
-            shadFiles.AddRange(crawlDirectory(shaderDirectory));
-            if(shaderExcludeDirectory != null) { 
-                shadExcludeFiles.AddRange(crawlDirectory(shaderExcludeDirectory));
-            }
-
-            // find shaderlist
-            if (!ignoreShaderList)
+            foreach (string shaderExcludeDirectory in shaderExcludeDirectories)
             {
-                foreach (string file in shadFiles)
+                if (shaderExcludeDirectory != null)
                 {
-                    string basename = Path.GetFileNameWithoutExtension(file);
-                    string extension = Path.GetExtension(file).ToLowerInvariant();
-                    if (basename.ToLowerInvariant().Trim() == "shaderlist" && extension == ".txt")
-                    {
-                        string[] allowedShaderFiles = File.ReadAllLines(file);
-                        foreach(string allowedShaderFile in allowedShaderFiles)
-                        {
-                            shaderListWhitelist.Add(allowedShaderFile.Trim());
-                        }
-
-                    }
+                    shadExcludeFiles.AddRange(crawlDirectory(shaderExcludeDirectory));
                 }
             }
 
-            shadFiles.Sort(); // Sort shaders alphabetically
-
-            //Dictionary<string, string> shaderFiles = new Dictionary<string, string>();
-            Dictionary<string, string> parsedShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
-            Dictionary<string, string> parsedExcludeShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
-            if (shaderListWhitelist.Count > 0 && !ignoreShaderList)
+            foreach (string shaderDirectory in shaderDirectories)
             {
-                // We want stuff to be read in the same order as shaderlist
-                // First shader found = kept.
-                foreach(string whitelistedShader in shaderListWhitelist)
-                {
+                List<string> shaderListWhitelist = new List<string>();
+                List<string> shadFiles = new List<string>();
 
+                shadFiles.AddRange(crawlDirectory(shaderDirectory));
+
+                // find shaderlist
+                if (!ignoreShaderList)
+                {
                     foreach (string file in shadFiles)
                     {
                         string basename = Path.GetFileNameWithoutExtension(file);
                         string extension = Path.GetExtension(file).ToLowerInvariant();
-                        if (extension == ".shader" && basename.Equals(whitelistedShader,StringComparison.InvariantCultureIgnoreCase))
+                        if (basename.ToLowerInvariant().Trim() == "shaderlist" && extension == ".txt")
                         {
-                            ParseShader(file, ref parsedShaders, shaderDuplicates);
+                            string[] allowedShaderFiles = File.ReadAllLines(file);
+                            foreach (string allowedShaderFile in allowedShaderFiles)
+                            {
+                                shaderListWhitelist.Add(allowedShaderFile.Trim());
+                            }
+
                         }
                     }
                 }
-            }
 
-            foreach (string file in shadFiles)
-            {
-                string basename = Path.GetFileNameWithoutExtension(file);
-                string extension = Path.GetExtension(file).ToLowerInvariant();
-                if (extension == ".shader")
+                shadFiles.Sort(); // Sort shaders alphabetically
+
+                //Dictionary<string, string> shaderFiles = new Dictionary<string, string>();
+                if (shaderListWhitelist.Count > 0 && !ignoreShaderList)
                 {
-                    if ((ignoreShaderList || shaderListWhitelist.Count == 0))
+                    // We want stuff to be read in the same order as shaderlist
+                    // First shader found = kept.
+                    foreach (string whitelistedShader in shaderListWhitelist)
                     {
-                        ParseShader(file, ref parsedShaders, shaderDuplicates);
+
+                        foreach (string file in shadFiles)
+                        {
+                            string basename = Path.GetFileNameWithoutExtension(file);
+                            string extension = Path.GetExtension(file).ToLowerInvariant();
+                            if (extension == ".shader" && basename.Equals(whitelistedShader, StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                ParseShader(file, ref parsedShaders, shaderDuplicates);
+                            }
+                        }
                     }
-                    else if (shaderListWhitelist.Contains(basename))
+                }
+
+                foreach (string file in shadFiles)
+                {
+                    string basename = Path.GetFileNameWithoutExtension(file);
+                    string extension = Path.GetExtension(file).ToLowerInvariant();
+                    if (extension == ".shader")
                     {
-                        // nuthin, already done above
+                        if ((ignoreShaderList || shaderListWhitelist.Count == 0))
+                        {
+                            ParseShader(file, ref parsedShaders, shaderDuplicates);
+                        }
+                        else if (shaderListWhitelist.Contains(basename))
+                        {
+                            // nuthin, already done above
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Skipping {file}, not in shaderlist.txt");
+                        }
+                        //shaderFiles[basename] = file;
                     }
-                    else
-                    {
-                        Console.WriteLine($"Skipping {file}, not in shaderlist.txt");
-                    }
-                    //shaderFiles[basename] = file;
                 }
             }
             foreach (string file in shadExcludeFiles)
@@ -258,7 +271,10 @@ namespace Q3ShaderPack
             if (outputDirectory != null)
             {
                 Directory.CreateDirectory(Path.Combine(outputDirectory,"shaders"));
-                File.WriteAllText(Path.Combine(outputDirectory, "shaders",$"{Path.GetFileNameWithoutExtension(bspFiles.Count == 0 ? mapFiles[0] : bspFiles[0])}.shader"), compiledShaders);
+                if (!string.IsNullOrWhiteSpace(compiledShaders))
+                {
+                    File.WriteAllText(Path.Combine(outputDirectory, "shaders", $"{Path.GetFileNameWithoutExtension(bspFiles.Count == 0 ? mapFiles[0] : bspFiles[0])}.shader"), compiledShaders);
+                }
 
                 // Copy special image files like lightImage and editorimage and .md3 models and audio files from .map alongside normal images
                 HashSet<string> mapModels = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
@@ -286,48 +302,59 @@ namespace Q3ShaderPack
                     extensionLessFiles.Add(Path.Combine(Path.GetDirectoryName(file),Path.GetFileNameWithoutExtension(file)));
                 }
 
-                List<string> files = new List<string>();
-                List<string> excludeFiles = new List<string>();
-                files.AddRange(crawlDirectory(Path.Combine(shaderDirectory,"..")));
-                if (shaderExcludeDirectory != null)
-                {
-                    excludeFiles.AddRange(crawlDirectory(Path.Combine(shaderExcludeDirectory, "..")));
-                }
 
                 HashSet<string> excludeFilesNormalized = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
-                foreach (string file in excludeFiles)
+                foreach (string shaderExcludeDirectory in shaderExcludeDirectories)
                 {
-                    string normalizedPath = Path.GetRelativePath(Path.Combine(shaderExcludeDirectory, ".."), file);
-                    excludeFilesNormalized.Add(normalizedPath);
+                    List<string> excludeFiles = new List<string>();
+                    if (shaderExcludeDirectory != null)
+                    {
+                        excludeFiles.AddRange(crawlDirectory(Path.Combine(shaderExcludeDirectory, "..")));
+                    }
+                    foreach (string file in excludeFiles)
+                    {
+                        string normalizedPath = Path.GetRelativePath(Path.Combine(shaderExcludeDirectory, ".."), file);
+                        excludeFilesNormalized.Add(normalizedPath);
+                    }
                 }
 
                 HashSet<string> filesToCopy = new HashSet<string>();
 
-                foreach(string file in files)
+                foreach (string shaderDirectory in shaderDirectories)
                 {
-                    string normalizedPath = Path.GetRelativePath(Path.Combine(shaderDirectory, ".."), file);
-                    string extensionLessName = Path.Combine(Path.GetDirectoryName(normalizedPath), Path.GetFileNameWithoutExtension(normalizedPath));
-                    if ((extensionLessFiles.Contains(extensionLessName)) && !excludeFilesNormalized.Contains(normalizedPath))
+                    List<string> files = new List<string>();
+                    files.AddRange(crawlDirectory(Path.Combine(shaderDirectory, "..")));
+                    foreach (string file in files)
                     {
-                        filesToCopy.Add(file);
+                        string normalizedPath = Path.GetRelativePath(Path.Combine(shaderDirectory, ".."), file);
+                        string extensionLessName = Path.Combine(Path.GetDirectoryName(normalizedPath), Path.GetFileNameWithoutExtension(normalizedPath));
+                        if ((extensionLessFiles.Contains(extensionLessName)) && !excludeFilesNormalized.Contains(normalizedPath))
+                        {
+                            filesToCopy.Add(file);
+                        }
+                    }
+                    foreach (string file in filesToCopy)
+                    {
+                        string normalizedPath = Path.GetRelativePath(Path.Combine(shaderDirectory, ".."), file);
+                        string outPath = Path.Combine(outputDirectory, normalizedPath);
+                        Directory.CreateDirectory(Path.GetDirectoryName(outPath));
+                        if (File.Exists(outPath))
+                        {
+
+                            Console.WriteLine($"{outPath} already exists.");
+                        }
+                        else
+                        {
+
+                            File.Copy(file, outPath);
+                        }
                     }
                 }
 
-                foreach(string file in filesToCopy)
-                {
-                    string normalizedPath = Path.GetRelativePath(Path.Combine(shaderDirectory, ".."), file);
-                    string outPath = Path.Combine(outputDirectory,normalizedPath);
-                    Directory.CreateDirectory(Path.GetDirectoryName(outPath));
-                    if (File.Exists(outPath))
-                    {
 
-                        Console.WriteLine($"{outPath} already exists.");
-                    } else
-                    {
+                
 
-                        File.Copy(file, outPath);
-                    }
-                }
+                
 
                 Console.WriteLine($"{filesToCopy.Count}");
             } else
