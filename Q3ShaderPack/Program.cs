@@ -84,6 +84,7 @@ namespace Q3ShaderPack
             bool ignoreShaderList = false;
             bool dontChangeImageSize = false;
             bool q3ToJk2Conversion = false;
+            bool keepRawFiles = false;
             while (argIndex < args.Length)
             {
                 string argument = args[argIndex++];
@@ -100,6 +101,11 @@ namespace Q3ShaderPack
                 if(argument.Equals("-q32jk2",StringComparison.InvariantCultureIgnoreCase))
                 {
                     q3ToJk2Conversion = true;
+                    continue;
+                }
+                if(argument.Equals("-keepCollectedFiles", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    keepRawFiles = true;
                     continue;
                 }
                 else if (argument.EndsWith(".bsp", StringComparison.InvariantCultureIgnoreCase))
@@ -578,6 +584,7 @@ namespace Q3ShaderPack
                 }
                 else
                 {
+                    string sdelMaybe = keepRawFiles ? "" : "-sdel";
                     try
                     {
 
@@ -585,7 +592,7 @@ namespace Q3ShaderPack
                     {
                         StartInfo = new ProcessStartInfo()
                         {
-                            Arguments = $"a -tzip \"{pk3name}\" -x!*.pk3 *",
+                            Arguments = $"a -tzip \"{pk3name}\" {sdelMaybe} -x!*.pk3 *",
                             FileName = "7za",
                             RedirectStandardError = true,
                             RedirectStandardOutput = true,
