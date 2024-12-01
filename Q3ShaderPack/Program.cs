@@ -575,7 +575,7 @@ namespace Q3ShaderPack
                     {
                         StartInfo = new ProcessStartInfo()
                         {
-                            Arguments = $"a -tzip \"{pk3name}\" *",
+                            Arguments = $"a -tzip \"{pk3name}\" -x!*.pk3 *",
                             FileName = "7za",
                             RedirectStandardError = true,
                             RedirectStandardOutput = true,
