@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -57,10 +58,12 @@ namespace Q3ShaderPack
                 }
                 else if (argument.EndsWith(".bsp", StringComparison.InvariantCultureIgnoreCase))
                 {
+                    fs.AddBaseFolder(Path.GetDirectoryName(argument));
                     bspFiles.Add(argument);
                     continue;
                 } else if (argument.EndsWith(".map", StringComparison.InvariantCultureIgnoreCase))
                 {
+                    fs.AddBaseFolder(Path.GetDirectoryName(argument));
                     mapFiles.Add(argument);
                     continue;
                 }
@@ -286,10 +289,11 @@ namespace Q3ShaderPack
 
             if (outputDirectory != null)
             {
+                string mainName = Path.GetFileNameWithoutExtension(bspFiles.Count == 0 ? mapFiles[0] : bspFiles[0]);
                 Directory.CreateDirectory(Path.Combine(outputDirectory,"shaders"));
                 if (!string.IsNullOrWhiteSpace(compiledShaders))
                 {
-                    File.WriteAllText(Path.Combine(outputDirectory, "shaders", $"{Path.GetFileNameWithoutExtension(bspFiles.Count == 0 ? mapFiles[0] : bspFiles[0])}.shader"), compiledShaders);
+                    File.WriteAllText(Path.Combine(outputDirectory, "shaders", $"{mainName}.shader"), compiledShaders);
                 }
 
                 // Copy special image files like lightImage and editorimage and .md3 models and audio files from .map alongside normal images
@@ -399,23 +403,29 @@ namespace Q3ShaderPack
 
                                         Console.WriteLine($"{outPath} resolution is not power of 2 ({width}x{height}), mogrifying (needs imagemagick) to {goodWidth}x{goodHeight}");
                                         File.Copy(outPath,$"{outPath}_backup_orig_res");
-                                        var proc = new Process()
+                                        try
                                         {
-                                            StartInfo = new ProcessStartInfo()
+                                            var proc = new Process()
                                             {
-                                                Arguments = $"mogrify -resize {goodWidth}x{goodHeight}! \"{outPath}\"",
-                                                FileName = "magick",
-                                                RedirectStandardError = true,
-                                                RedirectStandardOutput = true
-                                            }
-                                        };
-                                        proc.Start();
-                                        string error = proc.StandardError.ReadToEnd();
-                                        Console.WriteLine(error);
-                                        string output = proc.StandardOutput.ReadToEnd();
-                                        Console.WriteLine(output);
-                                        proc.WaitForExit();
-                                        Console.WriteLine($"Magick mogrify exited with code {proc.ExitCode}");
+                                                StartInfo = new ProcessStartInfo()
+                                                {
+                                                    Arguments = $"mogrify -resize {goodWidth}x{goodHeight}! \"{outPath}\"",
+                                                    FileName = "magick",
+                                                    RedirectStandardError = true,
+                                                    RedirectStandardOutput = true
+                                                }
+                                            };
+                                            proc.Start();
+                                            string error = proc.StandardError.ReadToEnd();
+                                            Console.WriteLine(error);
+                                            string output = proc.StandardOutput.ReadToEnd();
+                                            Console.WriteLine(output);
+                                            proc.WaitForExit();
+                                            Console.WriteLine($"Magick mogrify exited with code {proc.ExitCode}");
+                                        } catch(Exception ex)
+                                        {
+                                            Console.WriteLine($"Error mogrifying image. Probably, magick binary isn't in PATH. Error: {ex.ToString()}");
+                                        }
                                     }
                                 }
                             }
@@ -423,10 +433,56 @@ namespace Q3ShaderPack
                     }
                 }
 
+                string mapsDir = Path.Combine(outputDirectory, "maps");
+                Directory.CreateDirectory(mapsDir);
 
-                
+                foreach(string bsp in bspFiles)
+                {
+                    string outPath = Path.Combine(mapsDir, Path.GetFileName(bsp));
+                    fs.Copy(bsp, outPath);
+                }
+                foreach(string map in mapFiles)
+                {
+                    string outPath = Path.Combine(mapsDir, Path.GetFileName(map));
+                    fs.Copy(map, outPath);
+                }
 
-                
+                string pk3name = $"{mainName}.pk3";
+                if (File.Exists(pk3name))
+                {
+                    Console.WriteLine($"Error creating pk3. Already exists.");
+                }
+                else
+                {
+                    try
+                    {
+
+                    var proc = new Process()
+                    {
+                        StartInfo = new ProcessStartInfo()
+                        {
+                            Arguments = $"a -tzip \"{pk3name}\" *",
+                            FileName = "7za",
+                            RedirectStandardError = true,
+                            RedirectStandardOutput = true,
+                            WorkingDirectory = outputDirectory
+                        }
+                    };
+                    proc.Start();
+                    string error = proc.StandardError.ReadToEnd();
+                    Console.WriteLine(error);
+                    string output = proc.StandardOutput.ReadToEnd();
+                    Console.WriteLine(output);
+                    proc.WaitForExit();
+                    Console.WriteLine($"7za exited with code {proc.ExitCode}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error creating pk3. Probably, 7za binary isn't in PATH. Error: {ex.ToString()}");
+                    }
+                }
+
+
 
                 Console.WriteLine($"{filesToCopy.Count}");
             } else
