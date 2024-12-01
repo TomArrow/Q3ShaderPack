@@ -1,6 +1,9 @@
 ﻿using PCRE;
+using Pfim;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -38,19 +41,28 @@ namespace Q3ShaderPack
 
             string outputDirectory = null;
             bool ignoreShaderList = false;
+            bool dontChangeImageSize = false;
             while (argIndex < args.Length)
             {
                 string argument = args[argIndex++];
                 if(argument.Equals("-ignoreShaderList",StringComparison.InvariantCultureIgnoreCase))
                 {
                     ignoreShaderList = true;
+                    continue;
+                }
+                if(argument.Equals("-ignoreImageSize",StringComparison.InvariantCultureIgnoreCase))
+                {
+                    dontChangeImageSize = true;
+                    continue;
                 }
                 else if (argument.EndsWith(".bsp", StringComparison.InvariantCultureIgnoreCase))
                 {
                     bspFiles.Add(argument);
+                    continue;
                 } else if (argument.EndsWith(".map", StringComparison.InvariantCultureIgnoreCase))
                 {
                     mapFiles.Add(argument);
+                    continue;
                 }
                 else
                 {
@@ -351,6 +363,62 @@ namespace Q3ShaderPack
                         {
 
                             fs.Copy(file, outPath);
+                            if (!dontChangeImageSize)
+                            {
+                                string extension = Path.GetExtension(outPath).ToLowerInvariant();
+                                bool isImage = false;
+                                int width = 0;
+                                int height = 0;
+                                switch (extension)
+                                {
+                                    case ".jpg":
+                                    case ".jpeg":
+                                    case ".png":
+                                        using (SKImage img = SKImage.FromEncodedData(outPath))
+                                        {
+                                            width = img.Width;
+                                            height = img.Height;
+                                        }
+                                        isImage = true;
+                                        break;
+                                    case ".tga":
+                                        using (var img = Pfimage.FromFile(outPath))
+                                        {
+                                            width = img.Width;
+                                            height = img.Height;
+                                        }
+                                        isImage = true;
+                                        break;
+                                }
+                                if (isImage)
+                                {
+                                    int goodWidth = getClosestPowerOf2(width);
+                                    int goodHeight = getClosestPowerOf2(height);
+                                    if(width != goodWidth || height != goodHeight)
+                                    {
+
+                                        Console.WriteLine($"{outPath} resolution is not power of 2 ({width}x{height}), mogrifying (needs imagemagick) to {goodWidth}x{goodHeight}");
+                                        File.Copy(outPath,$"{outPath}_backup_orig_res");
+                                        var proc = new Process()
+                                        {
+                                            StartInfo = new ProcessStartInfo()
+                                            {
+                                                Arguments = $"mogrify -resize {goodWidth}x{goodHeight}! \"{outPath}\"",
+                                                FileName = "magick",
+                                                RedirectStandardError = true,
+                                                RedirectStandardOutput = true
+                                            }
+                                        };
+                                        proc.Start();
+                                        string error = proc.StandardError.ReadToEnd();
+                                        Console.WriteLine(error);
+                                        string output = proc.StandardOutput.ReadToEnd();
+                                        Console.WriteLine(output);
+                                        proc.WaitForExit();
+                                        Console.WriteLine($"Magick mogrify exited with code {proc.ExitCode}");
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -384,6 +452,16 @@ namespace Q3ShaderPack
 
         static Regex faceParseRegex = new Regex(@"(?<coordinates>(?<coordvec>\((?<vectorPart>\s*[-\d\.]+){3}\s*\)\s*){3})(?:\(\s*(\((?:\s*[-\d\.]+){3}\s*\)\s*){2}\))?\s*(?<texname>[^\s\n]+)\s*(?:\s*[-\d\.]+){3}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        private  static int getClosestPowerOf2(int num)
+        {
+            if (num == 0) return 0;
+            int num2 = 1;
+            while(num2 < num)
+            {
+                num2 *= 2;
+            }
+            return num2;
+        }
         private static HashSet<string> ParseMap(string mapFile, Q3FileSystem fs)
         {
             HashSet<string> shaders = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
