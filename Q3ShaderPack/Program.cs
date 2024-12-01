@@ -561,7 +561,8 @@ namespace Q3ShaderPack
                 }
 
                 string pk3name = $"{mainName}.pk3";
-                if (File.Exists(pk3name))
+                string pk3path = Path.Combine(outputDirectory,pk3name);
+                if (File.Exists(pk3path))
                 {
                     Console.WriteLine($"Error creating pk3. Already exists.");
                 }
