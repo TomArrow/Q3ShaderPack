@@ -21,6 +21,39 @@ namespace Q3ShaderPack
             public bool used = false;
         }
 
+        static bool convertQ3ToJk2Bsp(string fullPath, string basePath)
+        {
+            try
+            {
+                var proc = new Process()
+                {
+                    StartInfo = new ProcessStartInfo()
+                    {
+                        Arguments = $"-fs_basepath \"{basePath}\" -convert -format jk2 -game quake3 \"{Path.GetFileName(fullPath)}\"",
+                        FileName = "q3map2",
+                        RedirectStandardError = true,
+                        RedirectStandardOutput = true,
+                        WorkingDirectory = Path.GetDirectoryName(fullPath)
+                    }
+                };
+                string debug = proc.StartInfo.Arguments.ToString();
+                Console.WriteLine(debug);
+                proc.Start();
+                string error = proc.StandardError.ReadToEnd();
+                Console.WriteLine(error);
+                string output = proc.StandardOutput.ReadToEnd();
+                Console.WriteLine(output);
+                proc.WaitForExit();
+                Console.WriteLine($"q3map2 conversion exited with code {proc.ExitCode}");
+                return proc.ExitCode == 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error converting bsp. Probably, q3map2 binary isn't in PATH. Error: {ex.ToString()}");
+                return false;
+            }
+        }
+
         // TODO Detect non power of 2 tex
         // TODO Detect not found files.
         static void Main(string[] args)
@@ -128,7 +161,38 @@ namespace Q3ShaderPack
                         string fullPathFile = Path.GetFullPath(Path.Combine(basePath, entry.FullName));
                         if (Path.GetExtension(entry.Name).Equals(".bsp", StringComparison.OrdinalIgnoreCase))
                         {
-                            bspFiles.Add(fullPathFile);
+                            if (q3ToJk2Conversion)
+                            {
+                                if(shaderDirectories.Count == 0)
+                                {
+                                    Console.WriteLine(".bsp conversion failed. No shader directories provided. Need at least 1.");
+                                    return;
+                                }
+                                string workDirName = "_tmp_mapconvert";
+                                Directory.CreateDirectory(workDirName);
+                                string outPath = Path.GetFullPath(Path.Combine(workDirName, entry.Name));
+                                fs.Copy(fullPathFile, outPath);
+                                string convertedname = Path.GetFullPath(Path.Combine(workDirName, $"{Path.GetFileNameWithoutExtension(entry.Name)}_c{Path.GetExtension(entry.Name)}"));
+                                if (File.Exists(convertedname))
+                                {
+                                    File.Delete(convertedname);
+                                }
+                                string baseAssetsPath = Path.GetFullPath(Path.Combine(shaderDirectories[0], "../../"));
+                                baseAssetsPath = baseAssetsPath.Trim('\\');
+                                if (!convertQ3ToJk2Bsp(outPath, baseAssetsPath))
+                                {
+                                    Console.WriteLine($"{outPath} conversion failed. Exiting.");
+                                    return;
+                                }
+                                File.Delete(outPath);
+                                File.Move(convertedname, outPath);
+                                bspFiles.Add(outPath);
+                                fs.AddFolder(workDirName);
+                            }
+                            else
+                            {
+                                bspFiles.Add(fullPathFile);
+                            }
                         }
                         else if (Path.GetExtension(entry.Name).Equals(".map", StringComparison.OrdinalIgnoreCase))
                         {
