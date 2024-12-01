@@ -30,9 +30,11 @@ namespace Q3ShaderPack
             //string mapFile = null;
             //string shaderDirectory = null;
             //string shaderExcludeDirectory = null;
+            Q3FileSystem fs = new Q3FileSystem();
 
             List<string> shaderDirectories = new List<string>();
             List<string> shaderExcludeDirectories = new List<string>();
+            //HashSet<string> baseDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             string outputDirectory = null;
             bool ignoreShaderList = false;
@@ -73,9 +75,11 @@ namespace Q3ShaderPack
                     switch (folderType) {
                         case 0:
                             shaderDirectories.Add(argument);
+                            fs.AddBaseFolder(Path.Combine(argument,".."));
                             break;
                         case 1:
                             shaderExcludeDirectories.Add(argument);
+                            fs.AddBaseFolder(Path.Combine(argument, ".."));
                             break;
                         case 2:
                             outputDirectory = argument;
@@ -94,7 +98,7 @@ namespace Q3ShaderPack
             {
                 if (shaderExcludeDirectory != null)
                 {
-                    shadExcludeFiles.AddRange(crawlDirectory(shaderExcludeDirectory));
+                    shadExcludeFiles.AddRange(crawlDirectory(shaderExcludeDirectory,fs));
                 }
             }
 
@@ -103,7 +107,7 @@ namespace Q3ShaderPack
                 List<string> shaderListWhitelist = new List<string>();
                 List<string> shadFiles = new List<string>();
 
-                shadFiles.AddRange(crawlDirectory(shaderDirectory));
+                shadFiles.AddRange(crawlDirectory(shaderDirectory,fs));
 
                 // find shaderlist
                 if (!ignoreShaderList)
@@ -114,7 +118,7 @@ namespace Q3ShaderPack
                         string extension = Path.GetExtension(file).ToLowerInvariant();
                         if (basename.ToLowerInvariant().Trim() == "shaderlist" && extension == ".txt")
                         {
-                            string[] allowedShaderFiles = File.ReadAllLines(file);
+                            string[] allowedShaderFiles = fs.ReadAllLines(file);
                             foreach (string allowedShaderFile in allowedShaderFiles)
                             {
                                 shaderListWhitelist.Add(allowedShaderFile.Trim());
@@ -140,7 +144,7 @@ namespace Q3ShaderPack
                             string extension = Path.GetExtension(file).ToLowerInvariant();
                             if (extension == ".shader" && basename.Equals(whitelistedShader, StringComparison.InvariantCultureIgnoreCase))
                             {
-                                ParseShader(file, ref parsedShaders, shaderDuplicates);
+                                ParseShader(file, ref parsedShaders, fs, shaderDuplicates);
                             }
                         }
                     }
@@ -154,7 +158,7 @@ namespace Q3ShaderPack
                     {
                         if ((ignoreShaderList || shaderListWhitelist.Count == 0))
                         {
-                            ParseShader(file, ref parsedShaders, shaderDuplicates);
+                            ParseShader(file, ref parsedShaders, fs, shaderDuplicates);
                         }
                         else if (shaderListWhitelist.Contains(basename))
                         {
@@ -174,7 +178,7 @@ namespace Q3ShaderPack
                 string extension = Path.GetExtension(file).ToLowerInvariant();
                 if (extension == ".shader")
                 {
-                    ParseShader(file, ref parsedExcludeShaders);
+                    ParseShader(file, ref parsedExcludeShaders, fs);
                     //shaderFiles[basename] = file;
                 }
             }
@@ -182,7 +186,7 @@ namespace Q3ShaderPack
             HashSet<string> usedShadersHashSet = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
             foreach (string mapFile in mapFiles)
             {
-                HashSet<string> mapShaders = ParseMap(mapFile);
+                HashSet<string> mapShaders = ParseMap(mapFile, fs);
                 foreach(string shader in mapShaders)
                 {
                     usedShadersHashSet.Add(shader);
@@ -280,7 +284,7 @@ namespace Q3ShaderPack
                 HashSet<string> mapModels = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
                 foreach(string mapFile in mapFiles)
                 {
-                    var mapModelsHere = ParseMapModels(mapFile);
+                    var mapModelsHere = ParseMapModels(mapFile, fs);
                     foreach(string mapModelHere in mapModelsHere)
                     {
                         mapModels.Add(mapModelHere);
@@ -309,7 +313,7 @@ namespace Q3ShaderPack
                     List<string> excludeFiles = new List<string>();
                     if (shaderExcludeDirectory != null)
                     {
-                        excludeFiles.AddRange(crawlDirectory(Path.Combine(shaderExcludeDirectory, "..")));
+                        excludeFiles.AddRange(crawlDirectory(Path.Combine(shaderExcludeDirectory, ".."), fs));
                     }
                     foreach (string file in excludeFiles)
                     {
@@ -323,7 +327,7 @@ namespace Q3ShaderPack
                 foreach (string shaderDirectory in shaderDirectories)
                 {
                     List<string> files = new List<string>();
-                    files.AddRange(crawlDirectory(Path.Combine(shaderDirectory, "..")));
+                    files.AddRange(crawlDirectory(Path.Combine(shaderDirectory, ".."), fs));
                     foreach (string file in files)
                     {
                         string normalizedPath = Path.GetRelativePath(Path.Combine(shaderDirectory, ".."), file);
@@ -346,7 +350,7 @@ namespace Q3ShaderPack
                         else
                         {
 
-                            File.Copy(file, outPath);
+                            fs.Copy(file, outPath);
                         }
                     }
                 }
@@ -380,10 +384,10 @@ namespace Q3ShaderPack
 
         static Regex faceParseRegex = new Regex(@"(?<coordinates>(?<coordvec>\((?<vectorPart>\s*[-\d\.]+){3}\s*\)\s*){3})(?:\(\s*(\((?:\s*[-\d\.]+){3}\s*\)\s*){2}\))?\s*(?<texname>[^\s\n]+)\s*(?:\s*[-\d\.]+){3}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        private static HashSet<string> ParseMap(string mapFile)
+        private static HashSet<string> ParseMap(string mapFile, Q3FileSystem fs)
         {
             HashSet<string> shaders = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
-            string mapText = File.ReadAllText(mapFile);
+            string mapText = fs.ReadAllText(mapFile);
             MatchCollection matches = faceParseRegex.Matches(mapText);
             foreach(Match match in matches)
             {
@@ -394,10 +398,10 @@ namespace Q3ShaderPack
 
         static Regex modelParseRegex = new Regex(@"""(?:model|noise|awesomenoise)""\s*""(?<model>[^""]+)""", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        private static HashSet<string> ParseMapModels(string mapFile)
+        private static HashSet<string> ParseMapModels(string mapFile,Q3FileSystem fs)
         {
             HashSet<string> models = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
-            string mapText = File.ReadAllText(mapFile);
+            string mapText = fs.ReadAllText(mapFile);
             MatchCollection matches = modelParseRegex.Matches(mapText);
             foreach(Match match in matches)
             {
@@ -432,9 +436,9 @@ namespace Q3ShaderPack
             return images;
         }
 
-        private static void ParseShader(string file, ref Dictionary<string, string> shaderData, Dictionary<string, ShaderDupe> shaderDuplicates = null)
+        private static void ParseShader(string file, ref Dictionary<string, string> shaderData, Q3FileSystem fs, Dictionary<string, ShaderDupe> shaderDuplicates = null)
         {
-            string shaderText = File.ReadAllText(file);
+            string shaderText = fs.ReadAllText(file);
 
             // WIP: (?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>(?:\n\s*\{)(?:(?:\/\/[^\n]*)|[^\{\}]|(?R))*(?:\n\s*\}))
             // WIP: (?:^|\n)\s*(?<shaderName>(?:[-_\w\d:]|(?<!\/)\/)+)?\s*(?:\/\/[^\n]+\s*)*+(?<shaderBody>(?:[\n\r]+\s*\{)(?:(?:\/\/[^\n\r]*)|[^\{\}\/]|(?<!\/)\/(?!\/)|(?R))*(?:[\n\r]+\s*\}))
@@ -469,18 +473,18 @@ namespace Q3ShaderPack
 
 
 
-        static string[] crawlDirectory(string dir)
+        static string[] crawlDirectory(string dir,Q3FileSystem fs)
         {
-            if (!Directory.Exists(dir))
+            if (!fs.DirectoryExists(dir))
             {
                 return new string[0];
             }
             List<string> filesAll = new List<string>();
-            filesAll.AddRange(Directory.GetFiles(dir));
-            string[] dirs = Directory.GetDirectories(dir);
+            filesAll.AddRange(fs.GetFiles(dir));
+            string[] dirs = fs.GetDirectories(dir);
             foreach (string subdir in dirs)
             {
-                filesAll.AddRange(crawlDirectory(subdir));
+                filesAll.AddRange(crawlDirectory(subdir,fs));
             }
 
             return filesAll.ToArray();
