@@ -58,6 +58,12 @@ namespace Q3ShaderPack
         // TODO Detect not found files.
         static void Main(string[] args)
         {
+            if(args.Length == 0)
+            {
+                Console.WriteLine("Howto convert map from pk3: Q3ShaderPack <path_to_pk3> <path_to_q3_shader_folder> <path_to_shader_exclude_folder> out:out -ignoreShaderList -q32jk2");
+                Console.ReadKey();
+            }
+
             // Todo show shader dupes
             int argIndex = 0;
             int folderIndex = 0;
