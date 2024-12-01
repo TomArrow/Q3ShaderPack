@@ -30,6 +30,7 @@ namespace Q3ShaderPack
             int folderIndex = 0;
             List<string> bspFiles = new List<string>();
             List<string> mapFiles = new List<string>();
+            List<string> sourcePk3Files = new List<string>();
             //string bspFile = null;
             //string mapFile = null;
             //string shaderDirectory = null;
@@ -43,6 +44,7 @@ namespace Q3ShaderPack
             string outputDirectory = null;
             bool ignoreShaderList = false;
             bool dontChangeImageSize = false;
+            bool q3ToJk2Conversion = false;
             while (argIndex < args.Length)
             {
                 string argument = args[argIndex++];
@@ -56,6 +58,11 @@ namespace Q3ShaderPack
                     dontChangeImageSize = true;
                     continue;
                 }
+                if(argument.Equals("-q32jk2",StringComparison.InvariantCultureIgnoreCase))
+                {
+                    q3ToJk2Conversion = true;
+                    continue;
+                }
                 else if (argument.EndsWith(".bsp", StringComparison.InvariantCultureIgnoreCase))
                 {
                     fs.AddBaseFolder(Path.GetDirectoryName(argument));
@@ -65,6 +72,14 @@ namespace Q3ShaderPack
                 {
                     fs.AddBaseFolder(Path.GetDirectoryName(argument));
                     mapFiles.Add(argument);
+                    continue;
+                }else if (argument.EndsWith(".pk3", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    string basePath = Path.GetDirectoryName(argument);
+                    fs.AddBaseFolder(basePath);
+                    shaderDirectories.Add(Path.Combine(basePath, "scripts"));
+                    shaderDirectories.Add(Path.Combine(basePath, "shaders"));
+                    sourcePk3Files.Add(argument);
                     continue;
                 }
                 else
@@ -99,6 +114,26 @@ namespace Q3ShaderPack
                         case 2:
                             outputDirectory = argument;
                             break;
+                    }
+                }
+            }
+
+            foreach(string pk3file in sourcePk3Files)
+            {
+                string basePath =  Path.GetDirectoryName(Path.GetFullPath(pk3file));
+                using (ZipArchive zip = ZipFile.OpenRead(pk3file))
+                {
+                    foreach (ZipArchiveEntry entry in zip.Entries)
+                    {
+                        string fullPathFile = Path.GetFullPath(Path.Combine(basePath, entry.FullName));
+                        if (Path.GetExtension(entry.Name).Equals(".bsp", StringComparison.OrdinalIgnoreCase))
+                        {
+                            bspFiles.Add(fullPathFile);
+                        }
+                        else if (Path.GetExtension(entry.Name).Equals(".map", StringComparison.OrdinalIgnoreCase))
+                        {
+                            mapFiles.Add(fullPathFile);
+                        }
                     }
                 }
             }
@@ -209,7 +244,7 @@ namespace Q3ShaderPack
             }
             foreach (string bspFile in bspFiles)
             {
-                string[] bspShaders = BSPHelper.GetShaders(bspFile);
+                string[] bspShaders = BSPHelper.GetShaders(bspFile,fs);
                 foreach(string shader in bspShaders)
                 {
                     usedShadersHashSet.Add(shader);
@@ -338,12 +373,20 @@ namespace Q3ShaderPack
                     }
                 }
 
-                HashSet<string> filesToCopy = new HashSet<string>();
+                HashSet<string> foldersProcessed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                HashSet<string> filesToCopy = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (string shaderDirectory in shaderDirectories)
                 {
                     List<string> files = new List<string>();
-                    files.AddRange(crawlDirectory(Path.Combine(shaderDirectory, ".."), fs));
+                    string thePath = Path.Combine(shaderDirectory, "..");
+                    string thePathAbs = Path.GetFullPath(thePath);
+                    if (foldersProcessed.Contains(thePathAbs))
+                    {
+                        continue;
+                    }
+                    foldersProcessed.Add(thePathAbs);
+                    files.AddRange(crawlDirectory(thePath, fs));
                     foreach (string file in files)
                     {
                         string normalizedPath = Path.GetRelativePath(Path.Combine(shaderDirectory, ".."), file);

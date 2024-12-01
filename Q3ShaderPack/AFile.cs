@@ -218,7 +218,7 @@ namespace Q3ShaderPack
             string fullPath = Path.GetFullPath(path);
             return folders.Contains(fullPath);
         }
-        public string[] GetFiles(string path)
+        public string[] GetFiles(string path, bool neverNull = true)
         {
             string fullPath = Path.GetFullPath(path);
             if (folderFiles.ContainsKey(fullPath))
@@ -229,9 +229,9 @@ namespace Q3ShaderPack
             {
                 return new string[] { };
             }
-            return null;
+            return neverNull ? new string[] { }:  null;
         }
-        public string[] GetDirectories(string path)
+        public string[] GetDirectories(string path, bool neverNull = true)
         {
             string fullPath = Path.GetFullPath(path);
             if (folderDirs.ContainsKey(fullPath))
@@ -242,7 +242,7 @@ namespace Q3ShaderPack
             {
                 return new string[] { };
             }
-            return null;
+            return neverNull ? new string[] { } : null;
         }
         public string[] ReadAllLines(string path)
         {
@@ -268,6 +268,24 @@ namespace Q3ShaderPack
             if (pathToFile.ContainsKey(fullPath))
             {
                 return pathToFile[fullPath].ReadAllBytes();
+            }
+            return null;
+        }
+        public Stream GetStream(string path)
+        {
+            string fullPath = Path.GetFullPath(path);
+            if (pathToFile.ContainsKey(fullPath))
+            {
+                if (pathToFile[fullPath].InPk3)
+                {
+                    byte[] data = pathToFile[fullPath].ReadAllBytes();
+                    MemoryStream ms = new MemoryStream(data);
+                    return ms;
+                }
+                else
+                {
+                    return new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+                }
             }
             return null;
         }

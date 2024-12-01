@@ -120,10 +120,11 @@ namespace Q3ShaderPack
         }
 
 
-        public static unsafe string[] GetShaders(string bspPath)
+        public static unsafe string[] GetShaders(string bspPath,Q3FileSystem fsq3)
         {
             HashSet<string> shaders = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
-            using (FileStream fs = new FileStream(bspPath, FileMode.Open, FileAccess.Read))
+            //using (FileStream fs = new FileStream(bspPath, FileMode.Open, FileAccess.Read))
+            using (Stream fs = fsq3.GetStream(bspPath))
             {
                 using (BinaryReader br = new BinaryReader(fs))
                 {
