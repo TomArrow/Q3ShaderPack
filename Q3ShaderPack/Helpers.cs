@@ -29,5 +29,30 @@ namespace Q3ShaderPack
             handle.Free();
             return retVal;
         }
+
+        public static byte[] cutoffByteArrayAtZero(byte[] input)
+        {
+            for(int i = 0; i < input.Length; i++)
+            {
+                if(input[i] == 0)
+                {
+                    byte[] newArr = new byte[i];
+                    Buffer.BlockCopy(input, 0, newArr, 0, i);
+                    return newArr;
+                }
+            }
+            return input;
+        }
+        public static unsafe int getByteCountUntilZero(byte* input, int max)
+        {
+            for(int i = 0; i < max; i++)
+            {
+                if(input[i] == 0)
+                {
+                    return i;
+                }
+            }
+            return max;
+        }
     }
 }

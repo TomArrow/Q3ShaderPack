@@ -65,7 +65,8 @@ namespace Q3ShaderPack
             {
                 fixed (byte* shaderPtr = shader)
                 {
-                    return Encoding.ASCII.GetString(shaderPtr, MAX_QPATH).TrimEnd((Char)0);
+                    //return Encoding.ASCII.GetString(shaderPtr, MAX_QPATH).TrimEnd((Char)0);
+                    return Encoding.ASCII.GetString(shaderPtr, Helpers.getByteCountUntilZero(shaderPtr,MAX_QPATH)).TrimEnd((Char)0);
                 }
             }
         }

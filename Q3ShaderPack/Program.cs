@@ -552,11 +552,21 @@ namespace Q3ShaderPack
                 foreach(string bsp in bspFiles)
                 {
                     string outPath = Path.Combine(mapsDir, Path.GetFileName(bsp));
+                    if (File.Exists(outPath))
+                    {
+                        Console.WriteLine($"{outPath} already exists.");
+                        continue;
+                    }
                     fs.Copy(bsp, outPath);
                 }
                 foreach(string map in mapFiles)
                 {
                     string outPath = Path.Combine(mapsDir, Path.GetFileName(map));
+                    if (File.Exists(outPath))
+                    {
+                        Console.WriteLine($"{outPath} already exists.");
+                        continue;
+                    }
                     fs.Copy(map, outPath);
                 }
 
