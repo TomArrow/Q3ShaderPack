@@ -111,16 +111,19 @@ namespace Q3ShaderPack
                 }
                 else if (argument.EndsWith(".bsp", StringComparison.InvariantCultureIgnoreCase))
                 {
+                    Console.WriteLine($"Bsp input file added: {argument}");
                     fs.AddBaseFolder(Path.GetDirectoryName(argument));
                     bspFiles.Add(argument);
                     continue;
                 } else if (argument.EndsWith(".map", StringComparison.InvariantCultureIgnoreCase))
                 {
+                    Console.WriteLine($"Map input file added: {argument}");
                     fs.AddBaseFolder(Path.GetDirectoryName(argument));
                     mapFiles.Add(argument);
                     continue;
                 }else if (argument.EndsWith(".pk3", StringComparison.InvariantCultureIgnoreCase))
                 {
+                    Console.WriteLine($"Pk3 input file added: {argument}");
                     string basePath = Path.GetDirectoryName(Path.GetFullPath(argument));
                     //fs.AddBaseFolder(basePath);
                     fs.AddPk3(Path.GetFullPath(argument));
@@ -153,13 +156,16 @@ namespace Q3ShaderPack
                         case 0:
                             shaderDirectories.Add(argument);
                             shaderDirectoriesForBasePath.Add(argument);
+                            Console.WriteLine($"Shader dir added: {argument}");
                             fs.AddBaseFolder(Path.Combine(argument,".."));
                             break;
                         case 1:
                             shaderExcludeDirectories.Add(argument);
+                            Console.WriteLine($"Shader exclude dir added: {argument}");
                             fs.AddBaseFolder(Path.Combine(argument, ".."));
                             break;
                         case 2:
+                            Console.WriteLine($"Output dir: {argument}");
                             outputDirectory = argument;
                             break;
                     }
@@ -336,6 +342,9 @@ namespace Q3ShaderPack
             usedShadersHashSet.CopyTo(usedShaders);
             Array.Sort(usedShaders);
 
+            Console.WriteLine($"Parsed shader count: {parsedShaders.Count}");
+            Console.WriteLine($"Parsed exclude shader count: {parsedExcludeShaders.Count}");
+
             StringBuilder sb = new StringBuilder();
 
             foreach (string shader in usedShaders)
@@ -437,6 +446,13 @@ namespace Q3ShaderPack
                     extensionLessFiles.Add(Path.Combine(Path.GetDirectoryName(file),Path.GetFileNameWithoutExtension(file)));
                 }
 
+                Console.WriteLine("Files used by map: ");
+                foreach (string extensionLessFile in extensionLessFiles)
+                {
+                    Console.WriteLine(extensionLessFile);
+                }
+
+                Console.WriteLine();
 
                 HashSet<string> excludeFilesNormalized = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
                 foreach (string shaderExcludeDirectory in shaderExcludeDirectories)
@@ -473,6 +489,7 @@ namespace Q3ShaderPack
                         string extensionLessName = Path.Combine(Path.GetDirectoryName(normalizedPath), Path.GetFileNameWithoutExtension(normalizedPath));
                         if ((extensionLessFiles.Contains(extensionLessName)) && !excludeFilesNormalized.Contains(normalizedPath))
                         {
+                            Console.WriteLine($"Queueing {normalizedPath} for copy");
                             filesToCopy.Add(file);
                         }
                     }
@@ -684,7 +701,9 @@ namespace Q3ShaderPack
         private static HashSet<string> ParseShaderImages(string shaderText)
         {
             HashSet<string> images = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+            Console.WriteLine($"ParseShaderImages: {shaderText.Length} bytes of input.");
             MatchCollection matches = shaderImageRegex.Matches(shaderText);
+            Console.WriteLine($"ParseShaderImages: {matches.Count} matches");
             foreach(Match match in matches)
             {
                 bool isSkyParam = match.Groups["paramName"].Value.Equals("skyparms",StringComparison.InvariantCultureIgnoreCase);
