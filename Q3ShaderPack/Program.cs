@@ -122,7 +122,8 @@ namespace Q3ShaderPack
                 }else if (argument.EndsWith(".pk3", StringComparison.InvariantCultureIgnoreCase))
                 {
                     string basePath = Path.GetDirectoryName(Path.GetFullPath(argument));
-                    fs.AddBaseFolder(basePath);
+                    //fs.AddBaseFolder(basePath);
+                    fs.AddPk3(Path.GetFullPath(argument));
                     shaderDirectories.Add(Path.Combine(basePath, "scripts"));
                     shaderDirectories.Add(Path.Combine(basePath, "shaders"));
                     sourcePk3Files.Add(argument);
