@@ -76,6 +76,7 @@ namespace Q3ShaderPack
             //string shaderExcludeDirectory = null;
             Q3FileSystem fs = new Q3FileSystem();
 
+            List<string> shaderDirectoriesForBasePath = new List<string>();
             List<string> shaderDirectories = new List<string>();
             List<string> shaderExcludeDirectories = new List<string>();
             //HashSet<string> baseDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -120,7 +121,7 @@ namespace Q3ShaderPack
                     continue;
                 }else if (argument.EndsWith(".pk3", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    string basePath = Path.GetDirectoryName(argument);
+                    string basePath = Path.GetDirectoryName(Path.GetFullPath(argument));
                     fs.AddBaseFolder(basePath);
                     shaderDirectories.Add(Path.Combine(basePath, "scripts"));
                     shaderDirectories.Add(Path.Combine(basePath, "shaders"));
@@ -150,6 +151,7 @@ namespace Q3ShaderPack
                     switch (folderType) {
                         case 0:
                             shaderDirectories.Add(argument);
+                            shaderDirectoriesForBasePath.Add(argument);
                             fs.AddBaseFolder(Path.Combine(argument,".."));
                             break;
                         case 1:
@@ -175,9 +177,10 @@ namespace Q3ShaderPack
                         {
                             if (q3ToJk2Conversion)
                             {
-                                if(shaderDirectories.Count == 0)
+                                string shaderDirToChoose = shaderDirectoriesForBasePath.Count > 0 ? shaderDirectoriesForBasePath[0] : (shaderDirectories.Count > 0 ? shaderDirectories[0] : null);
+                                if (shaderDirToChoose == null)
                                 {
-                                    Console.WriteLine(".bsp conversion failed. No shader directories provided. Need at least 1.");
+                                    Console.WriteLine(".bsp conversion failed. No suitable shader directories provided. Need at least 1.");
                                     return;
                                 }
                                 string workDirName = "_tmp_mapconvert";
@@ -189,7 +192,7 @@ namespace Q3ShaderPack
                                 {
                                     File.Delete(convertedname);
                                 }
-                                string baseAssetsPath = Path.GetFullPath(Path.Combine(shaderDirectories[0], "../../"));
+                                string baseAssetsPath = Path.GetFullPath(Path.Combine(shaderDirectoriesForBasePath[0], "../../"));
                                 baseAssetsPath = baseAssetsPath.Trim('\\');
                                 if (!convertQ3ToJk2Bsp(outPath, baseAssetsPath))
                                 {
@@ -450,11 +453,11 @@ namespace Q3ShaderPack
                 }
 
                 HashSet<string> foldersProcessed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                HashSet<string> filesToCopy = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (string shaderDirectory in shaderDirectories)
                 {
                     List<string> files = new List<string>();
+                    HashSet<string> filesToCopy = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     string thePath = Path.Combine(shaderDirectory, "..");
                     string thePathAbs = Path.GetFullPath(thePath);
                     if (foldersProcessed.Contains(thePathAbs))
@@ -615,7 +618,7 @@ namespace Q3ShaderPack
 
 
 
-                Console.WriteLine($"{filesToCopy.Count}");
+                //Console.WriteLine($"{filesToCopy.Count}");
             } else
             {
                 File.WriteAllText("packedShaders.shader", compiledShaders);
@@ -675,7 +678,7 @@ namespace Q3ShaderPack
             return models;
         }
 
-        static Regex shaderImageRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)map|lightimage|editorimage|skyparms)[ \t]+(?<image>[^$][^\s\n]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex shaderImageRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)map|lightimage|editorimage|skyparms|clampmap)[ \t]+(?<image>[^$][^\s\n]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private static HashSet<string> ParseShaderImages(string shaderText)
         {
