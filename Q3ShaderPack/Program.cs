@@ -458,6 +458,17 @@ namespace Q3ShaderPack
                     shaderImages.Add(shader);
                 }
 
+                foreach (string bsp in bspFiles)
+                {
+                    string levelShotName = Path.Combine("levelshots",Path.GetFileNameWithoutExtension(bsp));
+                    shaderImages.Add(levelShotName);
+                }
+                foreach (string map in mapFiles)
+                {
+                    string levelShotName = Path.Combine("levelshots", Path.GetFileNameWithoutExtension(map));
+                    shaderImages.Add(levelShotName);
+                }
+
                 HashSet<string> extensionLessFiles = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
                 foreach (string shader in shaderImages)
                 {
