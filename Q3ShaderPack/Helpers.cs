@@ -22,6 +22,14 @@ namespace Q3ShaderPack
             handle.Free();
             return retVal;
         }
+        public static void WriteTypeAsBytes<T>(BinaryWriter bw, T thing)
+        {
+            byte[] bytes = new byte[Marshal.SizeOf(typeof(T))];
+            GCHandle handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            Marshal.StructureToPtr(thing, handle.AddrOfPinnedObject(),false);
+            bw.Write(bytes);
+            handle.Free();
+        }
         public static T ArrayBytesAsType<T, B>(B data, int byteOffset = 0)
         {
             GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);

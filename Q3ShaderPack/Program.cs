@@ -53,6 +53,27 @@ namespace Q3ShaderPack
                 return false;
             }
         }
+        //converts surface and content flags
+        static void convertQ3FlagsToJK2Flags(string inFile, string outFile)
+        {// no checks for errors here etc cuz im lazy
+            if (File.Exists(outFile))
+            {
+                File.Delete(outFile);
+            }
+            using (FileStream inStream = File.OpenRead(inFile))
+            {
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    BSPHelper.ConvertQ3FlagsToJK2Flags(inStream, ms);
+                    using(FileStream outStream = File.OpenWrite(outFile))
+                    {
+                        ms.Seek(0, SeekOrigin.Begin);
+                        outStream.Seek(0, SeekOrigin.Begin);
+                        ms.CopyTo(outStream);
+                    }
+                }
+            }
+        }
 
         // TODO Detect non power of 2 tex
         // TODO Detect not found files.
@@ -207,7 +228,8 @@ namespace Q3ShaderPack
                                     return;
                                 }
                                 File.Delete(outPath);
-                                File.Move(convertedname, outPath);
+                                //File.Move(convertedname, outPath);
+                                convertQ3FlagsToJK2Flags(convertedname,outPath);
                                 bspFiles.Add(outPath);
                                 fs.AddFolder(workDirName);
                             }
@@ -358,7 +380,7 @@ namespace Q3ShaderPack
                         sb.Append("\n");
                         sb.Append(q3mapVariant);
                         sb.Append("\n");
-                        sb.Append(parsedShaders[q3mapVariant]);
+                        sb.Append(FixShaderHackLightmapIfNeeded(parsedShaders[q3mapVariant]));
                         sb.Append("\n");
                         sb.Append("\n");
                         shaderDuplicates[q3mapVariant].used = true;
@@ -367,7 +389,7 @@ namespace Q3ShaderPack
                     sb.Append("\n");
                     sb.Append(shader);
                     sb.Append("\n");
-                    sb.Append(parsedShaders[shader]);
+                    sb.Append(FixShaderHackLightmapIfNeeded(parsedShaders[shader]));
                     sb.Append("\n");
                     sb.Append("\n");
                     shaderDuplicates[shader].used = true;
@@ -757,6 +779,35 @@ namespace Q3ShaderPack
                 }
             }
 
+        }
+
+        static Regex tcgenLightmapMatch = new Regex(@"\n[^\n]*?(?<tcgenPart>(?<=\s)tcGen)[ \t]+(?<lightmapPart>lightmap)", RegexOptions.Compiled|RegexOptions.IgnoreCase);
+        static string FixShaderHackLightmapIfNeeded(string shaderText)
+        {
+            string originalShader = shaderText;
+
+            int openBracket = shaderText.IndexOf("{");
+            int closeBracket = shaderText.LastIndexOf("}");
+            int lenInner = closeBracket - openBracket - 1;
+            if (openBracket==-1 || closeBracket == -1 || lenInner <= 0)
+            {
+                return originalShader;
+            }
+            shaderText = shaderText.Substring(openBracket + 1, lenInner);
+            int index = -1;
+            shaderText = PcreRegex.Replace(shaderText, @"(?<shaderStage>(?:\{)(?:(?:\/\/[^\n\r]*+)|[^\{\}\/]|(?<!\/)\/(?!\/)|(?R))*(?:\}))",(a)=> {
+                index++;
+                if (index == 0 && tcgenLightmapMatch.Match(a.Value).Success)
+                {
+                    return $"{{\n\t\tmap $lightmap\n\t\tblendFunc GL_ZERO GL_ONE\n\t}}\n\t{a.Value}";
+                }
+                else
+                {
+                    return a.Value;
+                }
+            }); 
+
+            return $"{{{shaderText}}}";
         }
 
 
