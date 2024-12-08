@@ -578,7 +578,8 @@ namespace Q3ShaderPack
                                     if(width != goodWidth || height != goodHeight || isIllegalTGA || isIllegalTGA2)
                                     {
                                         string resizeCmd = (width != goodWidth || height != goodHeight) ? $"-resize {goodWidth}x{goodHeight}!" : "";
-                                        string changeOrientationCmd = isIllegalTGA ? "-orient BottomLeft" : "";
+                                        //string changeOrientationCmd = isIllegalTGA ? "-orient BottomLeft" : "";
+                                        string changeOrientationCmd = extension == ".tga" ? "-orient BottomLeft" : "";
                                         string trueColorCmd = isIllegalTGA2 ? "-type TrueColorAlpha" : "";
                                         Console.WriteLine($"{outPath} resolution is not power of 2 ({width}x{height}), mogrifying (needs imagemagick) to {goodWidth}x{goodHeight}");
                                         File.Copy(outPath,$"{outPath}_backup_orig_res");
