@@ -546,6 +546,8 @@ namespace Q3ShaderPack
                                 bool isImage = false;
                                 int width = 0;
                                 int height = 0;
+                                bool isIllegalTGA = false;
+                                bool isIllegalTGA2 = false;
                                 switch (extension)
                                 {
                                     case ".jpg":
@@ -559,8 +561,10 @@ namespace Q3ShaderPack
                                         isImage = true;
                                         break;
                                     case ".tga":
-                                        using (var img = Pfimage.FromFile(outPath))
+                                        using (Targa img = (Targa)Pfimage.FromFile(outPath))
                                         {
+                                            isIllegalTGA = img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor && (img.Header.Orientation != TargaHeader.TargaOrientation.BottomLeft); // jk2 will refuse to load these tgas
+                                            isIllegalTGA2 = img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor &&( img.Header.PixelDepthBits != 24 && img.Header.PixelDepthBits != 32); // jk2 will refuse to load these tgas
                                             width = img.Width;
                                             height = img.Height;
                                         }
@@ -571,9 +575,11 @@ namespace Q3ShaderPack
                                 {
                                     int goodWidth = getClosestPowerOf2(width);
                                     int goodHeight = getClosestPowerOf2(height);
-                                    if(width != goodWidth || height != goodHeight)
+                                    if(width != goodWidth || height != goodHeight || isIllegalTGA || isIllegalTGA2)
                                     {
-
+                                        string resizeCmd = (width != goodWidth || height != goodHeight) ? $"-resize {goodWidth}x{goodHeight}!" : "";
+                                        string changeOrientationCmd = isIllegalTGA ? "-orient BottomLeft" : "";
+                                        string trueColorCmd = isIllegalTGA2 ? "-type TrueColorAlpha" : "";
                                         Console.WriteLine($"{outPath} resolution is not power of 2 ({width}x{height}), mogrifying (needs imagemagick) to {goodWidth}x{goodHeight}");
                                         File.Copy(outPath,$"{outPath}_backup_orig_res");
                                         try
@@ -582,7 +588,7 @@ namespace Q3ShaderPack
                                             {
                                                 StartInfo = new ProcessStartInfo()
                                                 {
-                                                    Arguments = $"mogrify -resize {goodWidth}x{goodHeight}! \"{outPath}\"",
+                                                    Arguments = $"mogrify {resizeCmd} {changeOrientationCmd} {trueColorCmd} \"{outPath}\"",
                                                     FileName = "magick",
                                                     RedirectStandardError = true,
                                                     RedirectStandardOutput = true
@@ -730,6 +736,7 @@ namespace Q3ShaderPack
         }
 
         static Regex shaderImageRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)map|lightimage|editorimage|skyparms|clampmap)[ \t]+(?<image>[^$][^\s\n]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex shaderImageAnimMapRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)animMap)[ \t]+(?<durationthing>[^$][^\s\n]+)(?<images>([ \t]+(?<image>[^$][^\s\n]+))+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private static HashSet<string> ParseShaderImages(string shaderText)
         {
@@ -752,6 +759,15 @@ namespace Q3ShaderPack
                 } else
                 {
                     images.Add(match.Groups["image"].Value);
+                }
+            }
+            matches = shaderImageAnimMapRegex.Matches(shaderText); 
+            foreach (Match match in matches)
+            {
+                string[] imgs = match.Groups["images"].Value.Trim().Split(new char[] { ' ','\t'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                foreach(string img in imgs)
+                {
+                    images.Add(img);
                 }
             }
             return images;
@@ -808,9 +824,10 @@ namespace Q3ShaderPack
             int index = -1;
             shaderText = PcreRegex.Replace(shaderText, @"(?<shaderStage>(?:\{)(?:(?:\/\/[^\n\r]*+)|[^\{\}\/]|(?<!\/)\/(?!\/)|(?R))*(?:\}))",(a)=> {
                 index++;
-                if (index == 0 && tcgenLightmapMatch.Match(a.Value).Success)
+                if (false)// (index == 0 && tcgenLightmapMatch.Match(a.Value).Success)
                 {
-                    return $"{{\n\t\tmap $lightmap\n\t\tblendFunc GL_ZERO GL_ONE\n\t}}\n\t{a.Value}";
+                    //return $"{{\n\t\tmap $lightmap\n\t\tblendFunc GL_ZERO GL_ONE\n\t}}\n\t{a.Value}";
+                    return $"{{\n\t\tmap $lightmap\n\t}}\n\t{a.Value}";
                 }
                 else
                 {
