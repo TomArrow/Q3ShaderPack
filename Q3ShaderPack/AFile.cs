@@ -181,6 +181,10 @@ namespace Q3ShaderPack
             {
                 foreach(ZipArchiveEntry entry in zip.Entries)
                 {
+                    if((entry.FullName.EndsWith('/') || entry.FullName.EndsWith('\\')) && entry.Length == 0 && string.IsNullOrWhiteSpace(entry.Name))
+                    {
+                        continue; // its a directory. skip it. some zips do this. shrug 
+                    }
                     string fullPathFile = Path.GetFullPath( Path.Combine(basePath, entry.FullName));
                     AFile file = new AFile(fullPathFile, entry.FullName, fullPath);
                     AddFileToPath(fullPathFile, file);
