@@ -737,7 +737,7 @@ namespace Q3ShaderPack
         }
 
         static Regex shaderImageRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)map|lightimage|editorimage|skyparms|clampmap)[ \t]+(?<image>[^$][^\s\n]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex shaderImageAnimMapRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)animMap)[ \t]+(?<durationthing>[^$][^\s\n]+)(?<images>([ \t]+(?<image>[^$][^\s\n]+))+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex shaderImageAnimMapRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)animMap)[ \t]+(?<durationthing>[^\s\n$]+)(?<images>([ \t]+(?<image>[^$][^\s\n]+))+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private static HashSet<string> ParseShaderImages(string shaderText)
         {
