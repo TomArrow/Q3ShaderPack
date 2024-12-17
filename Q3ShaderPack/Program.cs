@@ -11,6 +11,8 @@ using System.Text.RegularExpressions;
 
 namespace Q3ShaderPack
 {
+    // TODO dont resize stuff that is just an editor image
+    // TODO for obj do .mtl
     class Program
     {
         class ShaderDupe
@@ -731,7 +733,13 @@ namespace Q3ShaderPack
             MatchCollection matches = modelParseRegex.Matches(mapText);
             foreach(Match match in matches)
             {
-                models.Add(match.Groups["model"].Value);
+                string name = match.Groups["model"].Value.Trim();
+                models.Add(name);
+                if (name.EndsWith(".obj", StringComparison.OrdinalIgnoreCase))
+                {
+                    // may not exist technically but whatever just add it, it will just be ignored if it doesnt exist
+                    models.Add(name.Substring(0,name.Length-".obj".Length)+".mtl"); // TODO parse the .mtl file too
+                }
             }
             return models;
         }
