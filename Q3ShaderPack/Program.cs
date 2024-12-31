@@ -13,6 +13,7 @@ namespace Q3ShaderPack
 {
     // TODO dont resize stuff that is just an editor image
     // TODO for obj do .mtl
+    // TODO do music? (sl1k-remember2)
     class Program
     {
         class ShaderDupe
@@ -135,13 +136,13 @@ namespace Q3ShaderPack
                 else if (argument.EndsWith(".bsp", StringComparison.InvariantCultureIgnoreCase))
                 {
                     Console.WriteLine($"Bsp input file added: {argument}");
-                    fs.AddBaseFolder(Path.GetDirectoryName(argument));
+                    fs.AddBaseFolder(Path.GetDirectoryName(Path.GetFullPath(argument)));
                     bspFiles.Add(argument);
                     continue;
                 } else if (argument.EndsWith(".map", StringComparison.InvariantCultureIgnoreCase))
                 {
                     Console.WriteLine($"Map input file added: {argument}");
-                    fs.AddBaseFolder(Path.GetDirectoryName(argument));
+                    fs.AddBaseFolder(Path.GetDirectoryName(Path.GetFullPath(argument)));
                     mapFiles.Add(argument);
                     continue;
                 }else if (argument.EndsWith(".pk3", StringComparison.InvariantCultureIgnoreCase))
@@ -251,6 +252,8 @@ namespace Q3ShaderPack
             Dictionary<string, ShaderDupe> shaderDuplicates = new Dictionary<string, ShaderDupe>(StringComparer.InvariantCultureIgnoreCase);
             Dictionary<string, string> parsedShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
             Dictionary<string, string> parsedExcludeShaders = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
+
+            HashSet<string> writtenShaders = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
 
 
             List<string> shadExcludeFiles = new List<string>();
@@ -395,6 +398,8 @@ namespace Q3ShaderPack
                     sb.Append("\n");
                     sb.Append("\n");
                     shaderDuplicates[shader].used = true;
+
+                    writtenShaders.Add(shader);
                 }
             }
 
@@ -472,6 +477,7 @@ namespace Q3ShaderPack
                 }
 
                 HashSet<string> extensionLessFiles = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+                HashSet<string> extensionLessFilesUsed = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
                 foreach (string shader in shaderImages)
                 {
                     extensionLessFiles.Add(Path.Combine(Path.GetDirectoryName(shader),Path.GetFileNameWithoutExtension(shader)));
@@ -522,10 +528,14 @@ namespace Q3ShaderPack
                     {
                         string normalizedPath = Path.GetRelativePath(Path.Combine(shaderDirectory, ".."), file);
                         string extensionLessName = Path.Combine(Path.GetDirectoryName(normalizedPath), Path.GetFileNameWithoutExtension(normalizedPath));
-                        if ((extensionLessFiles.Contains(extensionLessName)) && !excludeFilesNormalized.Contains(normalizedPath))
+                        if ((extensionLessFiles.Contains(extensionLessName)))
                         {
-                            Console.WriteLine($"Queueing {normalizedPath} for copy");
-                            filesToCopy.Add(file);
+                            if (!excludeFilesNormalized.Contains(normalizedPath))
+                            {
+                                Console.WriteLine($"Queueing {normalizedPath} for copy");
+                                filesToCopy.Add(file);
+                            }
+                            extensionLessFilesUsed.Add(extensionLessName);
                         }
                     }
                     foreach (string file in filesToCopy)
@@ -676,6 +686,22 @@ namespace Q3ShaderPack
                     }
                 }
 
+                foreach(string path in extensionLessFiles)
+                {
+                    if (!extensionLessFilesUsed.Contains(path))
+                    {
+                        if (writtenShaders.Contains(path))
+                        {
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Shader/file not found (but shader of this name written): {path}");
+                        } else
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine($"Shader/file not found: {path}");
+                        }
+                    }
+                }
+                Console.ForegroundColor = ConsoleColor.White;
 
 
                 //Console.WriteLine($"{filesToCopy.Count}");
@@ -715,7 +741,16 @@ namespace Q3ShaderPack
         private static HashSet<string> ParseMap(string mapFile, Q3FileSystem fs)
         {
             HashSet<string> shaders = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+            if (!File.Exists(mapFile))
+            {
+                Console.WriteLine($"File not found: {mapFile}");
+            }
             string mapText = fs.ReadAllText(mapFile);
+
+            if (mapText == null)
+            {
+                Console.WriteLine($"Read file contents are null WTF: {mapFile}");
+            }
             MatchCollection matches = faceParseRegex.Matches(mapText);
             foreach(Match match in matches)
             {
