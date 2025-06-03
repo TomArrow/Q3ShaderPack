@@ -223,8 +223,12 @@ namespace Q3ShaderPack
                                 {
                                     File.Delete(convertedname);
                                 }
-                                string baseAssetsPath = Path.GetFullPath(Path.Combine(shaderDirectoriesForBasePath[0], "../../"));
-                                baseAssetsPath = baseAssetsPath.Trim('\\');
+                                string baseAssetsPath = "."; // MEH.
+                                if (shaderDirectoriesForBasePath.Count > 0)
+                                {
+                                    baseAssetsPath = Path.GetFullPath(Path.Combine(shaderDirectoriesForBasePath[0], "../../"));
+                                    baseAssetsPath = baseAssetsPath.Trim('\\');
+                                }
                                 if (!convertQ3ToJk2Bsp(outPath, baseAssetsPath))
                                 {
                                     Console.WriteLine($"{outPath} conversion failed. Exiting.");
@@ -558,8 +562,8 @@ namespace Q3ShaderPack
                                 bool isImage = false;
                                 int width = 0;
                                 int height = 0;
+                                string magickOptions = "";
                                 bool isIllegalTGA = false;
-                                bool isIllegalTGA2 = false;
                                 switch (extension)
                                 {
                                     case ".jpg":
@@ -573,10 +577,35 @@ namespace Q3ShaderPack
                                         isImage = true;
                                         break;
                                     case ".tga":
+                                        magickOptions += " -orient BottomLeft";
                                         using (Targa img = (Targa)Pfimage.FromFile(outPath))
                                         {
-                                            isIllegalTGA = img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor && (img.Header.Orientation != TargaHeader.TargaOrientation.BottomLeft); // jk2 will refuse to load these tgas
-                                            isIllegalTGA2 = img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor &&( img.Header.PixelDepthBits != 24 && img.Header.PixelDepthBits != 32) || img.Header.ImageType == TargaHeader.TargaImageType.RunLengthColorMap || img.Header.ImageType == TargaHeader.TargaImageType.RunLengthBW; // jk2 will refuse to load these tgas
+                                            if (img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor && (img.Header.Orientation != TargaHeader.TargaOrientation.BottomLeft))
+                                            {
+                                                isIllegalTGA = true; // jk2 will refuse to load these tgas
+                                            }
+                                            if (img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor && (img.Header.PixelDepthBits != 24 && img.Header.PixelDepthBits != 32) || img.Header.ImageType == TargaHeader.TargaImageType.RunLengthColorMap || img.Header.ImageType == TargaHeader.TargaImageType.RunLengthBW || img.Header.ImageType == TargaHeader.TargaImageType.UncompressedBW || img.Header.ImageType == TargaHeader.TargaImageType.UncompressedColorMap )
+                                            {
+                                                if ((img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor || img.Header.ImageType == TargaHeader.TargaImageType.UncompressedTrueColor) && img.Header.PixelDepthBits == 24)
+                                                {
+                                                    // should do this also for colormap if there is no alpha? but how to tell? idk.
+                                                    magickOptions += " -type TrueColor";
+                                                }
+                                                else
+                                                {
+                                                    magickOptions += " -type TrueColorAlpha";
+                                                }
+                                                isIllegalTGA = true; // not ALL of these are illegal but good chance imagemagick, if used, will force RLE on them and break them otherwise.
+                                            } else if ((img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor || img.Header.ImageType == TargaHeader.TargaImageType.UncompressedTrueColor) && img.Header.PixelDepthBits == 24)
+                                            {
+                                                // this is so fucking disgusting but we have to do this because imagemagick decides that we must be forced to create greyscale images even if the original image was RGB as long as it doesn't contain any non-greyscale pixels.
+                                                magickOptions += " -type TrueColor";
+                                            }
+                                            else
+                                            { // this is so fucking disgusting but we have to do this because imagemagick decides that we must be forced to create greyscale images even if the original image was RGB as long as it doesn't contain any non-greyscale pixels.
+                                                magickOptions += " -type TrueColorAlpha";
+                                            }
+
                                             width = img.Width;
                                             height = img.Height;
                                         }
@@ -587,13 +616,11 @@ namespace Q3ShaderPack
                                 {
                                     int goodWidth = getClosestPowerOf2(width);
                                     int goodHeight = getClosestPowerOf2(height);
-                                    if(width != goodWidth || height != goodHeight || isIllegalTGA || isIllegalTGA2)
+                                    if(width != goodWidth || height != goodHeight || isIllegalTGA)
                                     {
                                         string resizeCmd = (width != goodWidth || height != goodHeight) ? $"-resize {goodWidth}x{goodHeight}!" : "";
                                         //string changeOrientationCmd = isIllegalTGA ? "-orient BottomLeft" : "";
-                                        string changeOrientationCmd = extension == ".tga" ? "-orient BottomLeft" : "";
-                                        string trueColorCmd = isIllegalTGA2 ? "-type TrueColorAlpha" : "";
-                                        Console.WriteLine($"{outPath} resolution is not power of 2 ({width}x{height}), mogrifying (needs imagemagick) to {goodWidth}x{goodHeight}");
+                                        Console.WriteLine($"{outPath} resolution is not power of 2 ({width}x{height}) or other issue, mogrifying (needs imagemagick) to {goodWidth}x{goodHeight}");
                                         File.Copy(outPath,$"{outPath}_backup_orig_res");
                                         try
                                         {
@@ -601,7 +628,7 @@ namespace Q3ShaderPack
                                             {
                                                 StartInfo = new ProcessStartInfo()
                                                 {
-                                                    Arguments = $"mogrify {resizeCmd} {changeOrientationCmd} {trueColorCmd} \"{outPath}\"",
+                                                    Arguments = $"mogrify {resizeCmd} {magickOptions} -define colorspace:auto-grayscale=false \"{outPath}\"",
                                                     FileName = "magick",
                                                     RedirectStandardError = true,
                                                     RedirectStandardOutput = true
