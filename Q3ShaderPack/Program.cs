@@ -576,7 +576,7 @@ namespace Q3ShaderPack
                                         using (Targa img = (Targa)Pfimage.FromFile(outPath))
                                         {
                                             isIllegalTGA = img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor && (img.Header.Orientation != TargaHeader.TargaOrientation.BottomLeft); // jk2 will refuse to load these tgas
-                                            isIllegalTGA2 = img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor &&( img.Header.PixelDepthBits != 24 && img.Header.PixelDepthBits != 32); // jk2 will refuse to load these tgas
+                                            isIllegalTGA2 = img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor &&( img.Header.PixelDepthBits != 24 && img.Header.PixelDepthBits != 32) || img.Header.ImageType == TargaHeader.TargaImageType.RunLengthColorMap || img.Header.ImageType == TargaHeader.TargaImageType.RunLengthBW; // jk2 will refuse to load these tgas
                                             width = img.Width;
                                             height = img.Height;
                                         }
