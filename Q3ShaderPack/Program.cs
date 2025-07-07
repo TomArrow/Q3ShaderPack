@@ -14,6 +14,7 @@ namespace Q3ShaderPack
     // TODO dont resize stuff that is just an editor image
     // TODO for obj do .mtl
     // TODO do music? (sl1k-remember2)
+    // TODO collect shaders that exist in exclude dirs but are different...
     class Program
     {
         class ShaderDupe
@@ -370,8 +371,54 @@ namespace Q3ShaderPack
             
             
             string[] usedShaders = new string[usedShadersHashSet.Count];
+
+        foundMoreShaders:
             usedShadersHashSet.CopyTo(usedShaders);
+
+            int iFoundMoreShaders = 0;
+
+            // look for other referenced shaders inside existing shaders
+            foreach (string shader in usedShaders)
+            {
+
+                if (parsedShaders.ContainsKey(shader) && !parsedExcludeShaders.ContainsKey(shader))
+                {
+                    // Check if : variants (:q3map) exist.
+                    string q3mapVariant = $"{shader}:q3map";
+                    if (parsedShaders.ContainsKey(q3mapVariant) && !parsedExcludeShaders.ContainsKey(q3mapVariant))
+                    {
+                       
+                        HashSet<string> newFoundShaders = ParseShaderReferencedShaders(parsedShaders[q3mapVariant]);
+                        foreach (string newShader in newFoundShaders)
+                        {
+                            if (usedShadersHashSet.Add(newShader))
+                            {
+                                iFoundMoreShaders++;
+                            }
+                        }
+                    }
+
+                    HashSet<string> newFoundShaders2 = ParseShaderReferencedShaders(parsedShaders[shader]);
+                    foreach (string newShader in newFoundShaders2)
+                    {
+                        if (usedShadersHashSet.Add(newShader))
+                        {
+                            iFoundMoreShaders++;
+                        }
+                    }
+
+                    writtenShaders.Add(shader);
+                }
+            }
+
+            if (iFoundMoreShaders > 0)
+            {
+                Console.WriteLine($"Found {iFoundMoreShaders} more shaders referenced in used shaders. Looking again.");
+                goto foundMoreShaders;
+            }
+
             Array.Sort(usedShaders);
+
 
             Console.WriteLine($"Parsed shader count: {parsedShaders.Count}");
             Console.WriteLine($"Parsed exclude shader count: {parsedExcludeShaders.Count}");
@@ -806,6 +853,7 @@ namespace Q3ShaderPack
             return models;
         }
 
+        static Regex referencedShader = new Regex(@"\n[^\n]*?(?<paramName>backShader|baseShader|cloneShader|remapShader)[ \t]+(?<image>[^$][^\s\n]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static Regex shaderImageRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)map|lightimage|editorimage|skyparms|clampmap)[ \t]+(?<image>[^$][^\s\n]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static Regex shaderImageAnimMapRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)animMap)[ \t]+(?<durationthing>[^\s\n$]+)(?<images>([ \t]+(?<image>[^$][^\s\n]+))+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -840,6 +888,18 @@ namespace Q3ShaderPack
                 {
                     images.Add(img);
                 }
+            }
+            return images;
+        }
+        
+        private static HashSet<string> ParseShaderReferencedShaders(string shaderText)
+        {
+            HashSet<string> images = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+            MatchCollection matches = referencedShader.Matches(shaderText);
+            Console.WriteLine($"ParseShaderReferencedShaders: {shaderText.Length} bytes of input, {matches.Count} matches.");
+            foreach(Match match in matches)
+            {
+                images.Add(match.Groups["image"].Value);
             }
             return images;
         }
