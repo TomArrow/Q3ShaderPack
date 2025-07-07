@@ -370,9 +370,9 @@ namespace Q3ShaderPack
             }
             
             
-            string[] usedShaders = new string[usedShadersHashSet.Count];
 
         foundMoreShaders:
+            string[] usedShaders = new string[usedShadersHashSet.Count];
             usedShadersHashSet.CopyTo(usedShaders);
 
             int iFoundMoreShaders = 0;
