@@ -95,6 +95,7 @@ namespace Q3ShaderPack
             List<string> bspFiles = new List<string>();
             List<string> mapFiles = new List<string>();
             List<string> sourcePk3Files = new List<string>();
+            //HashSet<string> externalLightmapFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             //string bspFile = null;
             //string mapFile = null;
             //string shaderDirectory = null;
@@ -104,6 +105,7 @@ namespace Q3ShaderPack
             List<string> shaderDirectoriesForBasePath = new List<string>();
             List<string> shaderDirectories = new List<string>();
             List<string> shaderExcludeDirectories = new List<string>();
+            List<string> externalLightmapDirectories = new List<string>();
             //HashSet<string> baseDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             string outputDirectory = null;
@@ -139,12 +141,14 @@ namespace Q3ShaderPack
                     Console.WriteLine($"Bsp input file added: {argument}");
                     fs.AddBaseFolder(Path.GetDirectoryName(Path.GetFullPath(argument)));
                     bspFiles.Add(argument);
+                    externalLightmapDirectories.Add(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(argument)),Path.GetFileNameWithoutExtension(argument)));
                     continue;
                 } else if (argument.EndsWith(".map", StringComparison.InvariantCultureIgnoreCase))
                 {
                     Console.WriteLine($"Map input file added: {argument}");
                     fs.AddBaseFolder(Path.GetDirectoryName(Path.GetFullPath(argument)));
                     mapFiles.Add(argument);
+                    externalLightmapDirectories.Add(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(argument)), Path.GetFileNameWithoutExtension(argument)));
                     continue;
                 }else if (argument.EndsWith(".pk3", StringComparison.InvariantCultureIgnoreCase))
                 {
@@ -239,16 +243,19 @@ namespace Q3ShaderPack
                                 //File.Move(convertedname, outPath);
                                 convertQ3FlagsToJK2Flags(convertedname,outPath);
                                 bspFiles.Add(outPath);
+                                externalLightmapDirectories.Add(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(fullPathFile)), Path.GetFileNameWithoutExtension(fullPathFile)));
                                 fs.AddFolder(workDirName);
                             }
                             else
                             {
                                 bspFiles.Add(fullPathFile);
+                                externalLightmapDirectories.Add(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(fullPathFile)), Path.GetFileNameWithoutExtension(fullPathFile)));
                             }
                         }
                         else if (Path.GetExtension(entry.Name).Equals(".map", StringComparison.OrdinalIgnoreCase))
                         {
                             mapFiles.Add(fullPathFile);
+                            externalLightmapDirectories.Add(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(fullPathFile)), Path.GetFileNameWithoutExtension(fullPathFile)));
                         }
                     }
                 }
@@ -367,11 +374,11 @@ namespace Q3ShaderPack
                 {
                     usedShadersHashSet.Add(shader);
                 }
-            }
-            
+            }            
             
 
         foundMoreShaders:
+            
             string[] usedShaders = new string[usedShadersHashSet.Count];
             usedShadersHashSet.CopyTo(usedShaders);
 
@@ -520,11 +527,15 @@ namespace Q3ShaderPack
                 {
                     string levelShotName = Path.Combine("levelshots",Path.GetFileNameWithoutExtension(bsp));
                     shaderImages.Add(levelShotName);
+                    string hdrlightgrid = Path.Combine("maps", Path.GetFileNameWithoutExtension(bsp),"lightgrid.raw");
+                    shaderImages.Add(hdrlightgrid);
                 }
                 foreach (string map in mapFiles)
                 {
                     string levelShotName = Path.Combine("levelshots", Path.GetFileNameWithoutExtension(map));
                     shaderImages.Add(levelShotName);
+                    string hdrlightgrid = Path.Combine("maps", Path.GetFileNameWithoutExtension(map), "lightgrid.raw");
+                    shaderImages.Add(hdrlightgrid);
                 }
 
                 HashSet<string> extensionLessFiles = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
@@ -538,6 +549,7 @@ namespace Q3ShaderPack
                     extensionLessFiles.Add(Path.Combine(Path.GetDirectoryName(file),Path.GetFileNameWithoutExtension(file)));
                 }
 
+                
                 Console.WriteLine("Files used by map: ");
                 foreach (string extensionLessFile in extensionLessFiles)
                 {
@@ -722,6 +734,32 @@ namespace Q3ShaderPack
                     }
                     fs.Copy(map, outPath);
                 }
+
+
+                foreach (string lmdir in externalLightmapDirectories)
+                {
+                    string[] potentialLightmaps = fs.GetFiles(lmdir);
+                    string lmdirAbs = Path.Combine(mapsDir, Path.GetRelativePath(Path.GetFullPath(Path.Combine(lmdir, "..")), lmdir));
+                    foreach (string lm in potentialLightmaps)
+                    {
+                        string noextlm = Path.GetFileNameWithoutExtension(lm);
+                        string lmname = Path.GetFileName(lm);
+                        if (noextlm.StartsWith("lm_", StringComparison.OrdinalIgnoreCase) || lmname.Equals("lightgrid.raw", StringComparison.OrdinalIgnoreCase))
+                        {
+                            string outPath = Path.Combine(lmdirAbs, lmname);
+                            if (File.Exists(outPath))
+                            {
+                                Console.WriteLine($"{outPath} already exists.");
+                                continue;
+                            }
+                            Directory.CreateDirectory(lmdirAbs);
+                            fs.Copy(lm,outPath);
+                            //externalLightmapFiles.Add(lm);
+                            //usedShadersHashSet.Add(Path.Combine(lmdirRel, noextlm));
+                        }
+                    }
+                }
+
 
                 string pk3name = $"{mainName}.pk3";
                 string pk3path = Path.Combine(outputDirectory,pk3name);
