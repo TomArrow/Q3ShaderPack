@@ -529,6 +529,10 @@ namespace Q3ShaderPack
                     shaderImages.Add(levelShotName);
                     string hdrlightgrid = Path.Combine("maps", Path.GetFileNameWithoutExtension(bsp),"lightgrid.raw");
                     shaderImages.Add(hdrlightgrid);
+                    string vertlightdeluxe = Path.Combine("maps", Path.GetFileNameWithoutExtension(bsp), "vertlightDeluxe.raw");
+                    shaderImages.Add(vertlightdeluxe);
+                    string vertlight = Path.Combine("maps", Path.GetFileNameWithoutExtension(bsp), "vertlight.raw");
+                    shaderImages.Add(vertlight);
                 }
                 foreach (string map in mapFiles)
                 {
@@ -536,6 +540,10 @@ namespace Q3ShaderPack
                     shaderImages.Add(levelShotName);
                     string hdrlightgrid = Path.Combine("maps", Path.GetFileNameWithoutExtension(map), "lightgrid.raw");
                     shaderImages.Add(hdrlightgrid);
+                    string vertlightdeluxe = Path.Combine("maps", Path.GetFileNameWithoutExtension(map), "vertlightDeluxe.raw");
+                    shaderImages.Add(vertlightdeluxe);
+                    string vertlight = Path.Combine("maps", Path.GetFileNameWithoutExtension(map), "vertlight.raw");
+                    shaderImages.Add(vertlight);
                 }
 
                 HashSet<string> extensionLessFiles = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
@@ -744,7 +752,7 @@ namespace Q3ShaderPack
                     {
                         string noextlm = Path.GetFileNameWithoutExtension(lm);
                         string lmname = Path.GetFileName(lm);
-                        if (noextlm.StartsWith("lm_", StringComparison.OrdinalIgnoreCase) || lmname.Equals("lightgrid.raw", StringComparison.OrdinalIgnoreCase))
+                        if (noextlm.StartsWith("lm_", StringComparison.OrdinalIgnoreCase) || lmname.Equals("lightgrid.raw", StringComparison.OrdinalIgnoreCase) || lmname.Equals("vertlightDeluxe.raw", StringComparison.OrdinalIgnoreCase) || lmname.Equals("vertlight.raw", StringComparison.OrdinalIgnoreCase))
                         {
                             string outPath = Path.Combine(lmdirAbs, lmname);
                             if (File.Exists(outPath))
