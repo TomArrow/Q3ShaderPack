@@ -651,7 +651,7 @@ namespace Q3ShaderPack
                                             {
                                                 isIllegalTGA = true; // jk2 will refuse to load these tgas
                                             }
-                                            if (img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor && (img.Header.PixelDepthBits != 24 && img.Header.PixelDepthBits != 32) || img.Header.ImageType == TargaHeader.TargaImageType.RunLengthColorMap || img.Header.ImageType == TargaHeader.TargaImageType.RunLengthBW || img.Header.ImageType == TargaHeader.TargaImageType.UncompressedBW || img.Header.ImageType == TargaHeader.TargaImageType.UncompressedColorMap )
+                                            if (img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor && (img.Header.PixelDepthBits != 24 && img.Header.PixelDepthBits != 32) || img.Header.ImageType == TargaHeader.TargaImageType.RunLengthColorMap || img.Header.ImageType == TargaHeader.TargaImageType.RunLengthBW || img.Header.ImageType == TargaHeader.TargaImageType.UncompressedBW || img.Header.ImageType == TargaHeader.TargaImageType.UncompressedColorMap || img.Header.HasColorMap || img.Header.ColorMapOrigin != 0 )
                                             {
                                                 if ((img.Header.ImageType == TargaHeader.TargaImageType.RunLengthTrueColor || img.Header.ImageType == TargaHeader.TargaImageType.UncompressedTrueColor) && img.Header.PixelDepthBits == 24)
                                                 {
