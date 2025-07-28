@@ -633,6 +633,17 @@ namespace Q3ShaderPack
                                 bool isIllegalTGA = false;
                                 switch (extension)
                                 {
+                                    case ".hdr":
+                                    case ".exr":
+                                        //using (var img = OpenEXR.ExrLoader.LoadFromPath(outPath))
+                                        //{
+                                            width = 512;
+                                            height = 512;
+                                            // can't do anything. cant find a library to read .hdr that isnt a weird mess
+                                            // just assume its ok, shrug
+                                        //}
+                                        isImage = true;
+                                        break;
                                     case ".jpg":
                                     case ".jpeg":
                                     case ".png":
