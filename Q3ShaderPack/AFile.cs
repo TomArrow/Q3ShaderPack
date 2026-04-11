@@ -82,7 +82,7 @@ namespace Q3ShaderPack
             }
             else
             {
-                return File.ReadAllText(_path);
+                return File.ReadAllText(_path, Encoding.Latin1);
             }
         }
         public byte[] ReadAllBytes()
