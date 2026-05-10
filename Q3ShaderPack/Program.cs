@@ -625,7 +625,12 @@ namespace Q3ShaderPack
                         mapModels.Add(mapModelHere);
                     }
                 }
-                HashSet<string> shaderImages = ParseShaderImages(compiledShaders);
+                Dictionary<string, HashSet<string>> requiredImagesQ3 = null;
+                if (jk2ToQ3Conversion)
+                {
+                    requiredImagesQ3 = new Dictionary<string, HashSet<string>>(StringComparer.InvariantCultureIgnoreCase);
+                }
+                HashSet<string> shaderImages = ParseShaderImages(compiledShaders, requiredImagesQ3);
                 foreach (string shader in usedShaders)
                 {
                     shaderImages.Add(shader);
@@ -659,10 +664,23 @@ namespace Q3ShaderPack
                 }
 
                 HashSet<string> extensionLessFiles = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+                Dictionary<string, HashSet<string>> extensionLessFilesCopyQueue = new Dictionary<string, HashSet<string>>(StringComparer.InvariantCultureIgnoreCase);
                 HashSet<string> extensionLessFilesUsed = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
                 foreach (string shader in shaderImages)
                 {
-                    extensionLessFiles.Add(Path.Combine(Path.GetDirectoryName(shader),Path.GetFileNameWithoutExtension(shader)));
+                    string extensionless = Path.Combine(Path.GetDirectoryName(shader), Path.GetFileNameWithoutExtension(shader));
+                    extensionLessFiles.Add(extensionless);
+                    if(requiredImagesQ3 != null && requiredImagesQ3.ContainsKey(shader))
+                    {
+                        if (!extensionLessFilesCopyQueue.ContainsKey(extensionless))
+                        {
+                            extensionLessFilesCopyQueue[extensionless] = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+                        }
+                        foreach (string target in requiredImagesQ3[shader])
+                        {
+                            extensionLessFilesCopyQueue[extensionless].Add(Path.Combine(Path.GetDirectoryName(target), Path.GetFileNameWithoutExtension(target)));
+                        }
+                    }
                 }
                 foreach (string file in mapModels)
                 {
@@ -695,6 +713,8 @@ namespace Q3ShaderPack
 
                 HashSet<string> foldersProcessed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+                HashSet<KeyValuePair<string, string>> fileRescueCopyQueue = new HashSet<KeyValuePair<string, string>>();
+
                 foreach (string shaderDirectory in shaderDirectories)
                 {
                     List<string> files = new List<string>();
@@ -717,6 +737,20 @@ namespace Q3ShaderPack
                             {
                                 Console.WriteLine($"Queueing {normalizedPath} for copy");
                                 filesToCopy.Add(file);
+                            }
+                            if (extensionLessFilesCopyQueue.ContainsKey(extensionLessName))
+                            {
+                                foreach (string target in extensionLessFilesCopyQueue[extensionLessName])
+                                {
+                                    string targetReal = target + Path.GetExtension(normalizedPath);
+                                    if (!excludeFilesNormalized.Contains(targetReal))
+                                    {
+                                        string outPath = Path.Combine(outputDirectory, normalizedPath);
+                                        string outPathTarget = Path.Combine(outputDirectory, targetReal);
+                                        Console.WriteLine($"Queueing {normalizedPath} for rescue copy to {targetReal}");
+                                        fileRescueCopyQueue.Add(new KeyValuePair<string, string>(outPath, outPathTarget));
+                                    }
+                                }
                             }
                             extensionLessFilesUsed.Add(extensionLessName);
                         }
@@ -839,6 +873,15 @@ namespace Q3ShaderPack
                                 }
                             }
                         }
+
+                    }
+                }
+
+                foreach(var kvp in fileRescueCopyQueue)
+                {
+                    if(File.Exists(kvp.Key) && !File.Exists(kvp.Value))
+                    {
+                        File.Copy(kvp.Key, kvp.Value);
                     }
                 }
 
@@ -1033,10 +1076,10 @@ namespace Q3ShaderPack
         }
 
         static Regex referencedShader = new Regex(@"\n[^\n]*?(?<paramName>backShader|baseShader|cloneShader|remapShader)[ \t]+(?<image>[^$][^\s\n]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex shaderImageRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)map|lightimage|editorimage|skyparms|clampmap)[ \t]+(?<image>[^$][^\s\n]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex shaderImageRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)map|videomap|lightimage|editorimage|skyparms|clampmap)[ \t]+(?<image>[^$][^\s\n]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static Regex shaderImageAnimMapRegex = new Regex(@"\n[^\n]*?(?<paramName>(?<=\s)animMap)[ \t]+(?<durationthing>[^\s\n$]+)(?<images>([ \t]+(?<image>[^$][^\s\n]+))+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        private static HashSet<string> ParseShaderImages(string shaderText)
+        private static HashSet<string> ParseShaderImages(string shaderText, Dictionary<string,HashSet<string>> requiredImagesQ3)
         {
             HashSet<string> images = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
             Console.WriteLine($"ParseShaderImages: {shaderText.Length} bytes of input.");
@@ -1045,15 +1088,41 @@ namespace Q3ShaderPack
             foreach(Match match in matches)
             {
                 bool isSkyParam = match.Groups["paramName"].Value.Equals("skyparms",StringComparison.InvariantCultureIgnoreCase);
+                bool isVideoMap = match.Groups["paramName"].Value.Equals("videoMap",StringComparison.InvariantCultureIgnoreCase);
                 if (isSkyParam)
                 {
+                    HashSet<string> skyImgs = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
                     string imgName = match.Groups["image"].Value.Trim();
-                    images.Add($"{imgName}_ft");
-                    images.Add($"{imgName}_bk");
-                    images.Add($"{imgName}_lf");
-                    images.Add($"{imgName}_rt");
-                    images.Add($"{imgName}_up");
-                    images.Add($"{imgName}_dn");
+                    skyImgs.Add($"{imgName}_ft");
+                    skyImgs.Add($"{imgName}_bk");
+                    skyImgs.Add($"{imgName}_lf");
+                    skyImgs.Add($"{imgName}_rt");
+                    skyImgs.Add($"{imgName}_up");
+                    skyImgs.Add($"{imgName}_dn");
+
+                    foreach(string img in skyImgs)
+                    {
+                        images.Add(img);
+                        if (requiredImagesQ3 != null)
+                        {
+                            // REALLY DUMB CODE. q3 doesnt like it when these dont all exist. we just get notex sky sides
+                            // so we just queue each of these images to be copied onto every other one, just in case it doesn't exist yet.
+                            if (!requiredImagesQ3.ContainsKey(img))
+                            {
+                                requiredImagesQ3[img] = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+                            }
+                            foreach (string img2 in skyImgs)
+                            {
+                                if (!img.Equals(img2, StringComparison.InvariantCultureIgnoreCase))
+                                {
+                                    requiredImagesQ3[img].Add(img2);
+                                }
+                            }
+                        }
+                    }
+                } else if(isVideoMap)
+                {
+                    images.Add("video/"+match.Groups["image"].Value);
                 } else
                 {
                     images.Add(match.Groups["image"].Value);
