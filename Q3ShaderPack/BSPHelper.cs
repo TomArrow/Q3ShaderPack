@@ -177,6 +177,8 @@ namespace Q3ShaderPack
             SURF_ALPHASHADOW,
         }
 
+
+
         static Dictionary<ContentFlag, UInt32> contentFlagToIntJk2 = new Dictionary<ContentFlag, UInt32>() {
             {ContentFlag.CONTENTS_SOLID,0x00000001},
             {ContentFlag.CONTENTS_LAVA,0x00000002},
@@ -203,6 +205,32 @@ namespace Q3ShaderPack
             {ContentFlag.CONTENTS_DETAIL,0x08000000},
             {ContentFlag.CONTENTS_TRANSLUCENT,0x80000000},
         };
+        static Dictionary<UInt32, ContentFlag> jk2IntToContentFlag = new Dictionary<UInt32, ContentFlag>() {
+            {0x00000001,ContentFlag.CONTENTS_SOLID},
+            {0x00000002,ContentFlag.CONTENTS_LAVA},
+            {0x00000004,ContentFlag.CONTENTS_WATER},
+            {0x00000008,ContentFlag.CONTENTS_FOG},
+            {0x00000010,ContentFlag.CONTENTS_PLAYERCLIP},
+            {0x00000020,ContentFlag.CONTENTS_MONSTERCLIP},
+            {0x00000040,ContentFlag.CONTENTS_BOTCLIP},
+            {0x00000080,ContentFlag.CONTENTS_SHOTCLIP},
+            {0x00000100,ContentFlag.CONTENTS_BODY},
+            {0x00000200,ContentFlag.CONTENTS_CORPSE},
+            {0x00000400,ContentFlag.CONTENTS_TRIGGER},
+            {0x00000800,ContentFlag.CONTENTS_NODROP},
+            {0x00001000,ContentFlag.CONTENTS_TERRAIN},
+            {0x00002000,ContentFlag.CONTENTS_LADDER},
+            {0x00004000,ContentFlag.CONTENTS_ABSEIL},
+            {0x00008000,ContentFlag.CONTENTS_OPAQUE},
+            {0x00010000,ContentFlag.CONTENTS_OUTSIDE},
+            {0x00020000,ContentFlag.CONTENTS_SLIME},
+            {0x00040000,ContentFlag.CONTENTS_LIGHTSABER},
+            {0x00080000,ContentFlag.CONTENTS_TELEPORTER},
+            {0x00100000,ContentFlag.CONTENTS_ITEM},
+            {0x00200000,ContentFlag.CONTENTS_NOSHOT},
+            {0x08000000,ContentFlag.CONTENTS_DETAIL},
+            {0x80000000,ContentFlag.CONTENTS_TRANSLUCENT},
+        };
         static Dictionary<SurfaceFlag, UInt32> surfaceFlagToIntJk2 = new Dictionary<SurfaceFlag, UInt32>() {
             {SurfaceFlag.SURF_SKY,0x00002000},
             {SurfaceFlag.SURF_SLICK,0x00004000},
@@ -215,6 +243,20 @@ namespace Q3ShaderPack
             {SurfaceFlag.SURF_NOSTEPS,0x00400000},
             {SurfaceFlag.SURF_NODLIGHT,0x00800000},
             {SurfaceFlag.SURF_NOMISCENTS,0x01000000},
+        };
+
+        static Dictionary<UInt32, SurfaceFlag> jk2IntToSurfaceFlag = new Dictionary<UInt32, SurfaceFlag>() {
+            {0x00002000,SurfaceFlag.SURF_SKY},
+            {0x00004000,SurfaceFlag.SURF_SLICK},
+            {0x00008000,SurfaceFlag.SURF_METALSTEPS},
+            {0x00010000,SurfaceFlag.SURF_FORCEFIELD},
+            {0x00040000,SurfaceFlag.SURF_NODAMAGE},
+            {0x00080000,SurfaceFlag.SURF_NOIMPACT},
+            {0x00100000,SurfaceFlag.SURF_NOMARKS},
+            {0x00200000,SurfaceFlag.SURF_NODRAW},
+            {0x00400000,SurfaceFlag.SURF_NOSTEPS},
+            {0x00800000,SurfaceFlag.SURF_NODLIGHT},
+            {0x01000000,SurfaceFlag.SURF_NOMISCENTS},
         };
         static Dictionary<UInt32, ContentFlag> q3IntToContentFlag = new Dictionary<UInt32, ContentFlag>() {
             {1,ContentFlag.CONTENTS_SOLID},
@@ -238,6 +280,28 @@ namespace Q3ShaderPack
             {0x40000000,ContentFlag.CONTENTS_TRIGGER},
             {0x80000000,ContentFlag.CONTENTS_NODROP},
         };
+        static Dictionary<ContentFlag, UInt32> contentFlagToIntQ3 = new Dictionary<ContentFlag, UInt32>() {
+            {ContentFlag.CONTENTS_SOLID,1},
+            {ContentFlag.CONTENTS_LAVA,8},
+            {ContentFlag.CONTENTS_SLIME,16},
+            {ContentFlag.CONTENTS_WATER,32},
+            {ContentFlag.CONTENTS_FOG,64},
+            {ContentFlag.CONTENTS_AREAPORTAL,0x8000},
+            {ContentFlag.CONTENTS_PLAYERCLIP,0x10000},
+            {ContentFlag.CONTENTS_MONSTERCLIP,0x20000},
+            {ContentFlag.CONTENTS_TELEPORTER,0x40000},
+            {ContentFlag.CONTENTS_JUMPPAD,0x80000},
+            {ContentFlag.CONTENTS_CLUSTERPORTAL,0x100000},
+            {ContentFlag.CONTENTS_DONOTENTER,0x200000},
+            {ContentFlag.CONTENTS_ORIGIN,0x1000000},
+            {ContentFlag.CONTENTS_BODY,0x2000000},
+            {ContentFlag.CONTENTS_CORPSE,0x4000000},
+            {ContentFlag.CONTENTS_DETAIL,0x8000000},
+            {ContentFlag.CONTENTS_STRUCTURAL,0x10000000},
+            {ContentFlag.CONTENTS_TRANSLUCENT,0x20000000},
+            {ContentFlag.CONTENTS_TRIGGER,0x40000000},
+            {ContentFlag.CONTENTS_NODROP,0x80000000},
+        };
         static Dictionary<UInt32, SurfaceFlag> q3IntToSurfaceFlag = new Dictionary<UInt32, SurfaceFlag>() {
             {0x1,SurfaceFlag.SURF_NODAMAGE},
             {0x2,SurfaceFlag.SURF_SLICK},
@@ -257,6 +321,26 @@ namespace Q3ShaderPack
             {0x8000,SurfaceFlag.SURF_LIGHTFILTER},
             {0x10000,SurfaceFlag.SURF_ALPHASHADOW},
             {0x20000,SurfaceFlag.SURF_NODLIGHT},
+        };
+        static Dictionary<SurfaceFlag, UInt32> surfaceFlagToIntQ3 = new Dictionary<SurfaceFlag, UInt32>() {
+            {SurfaceFlag.SURF_NODAMAGE,0x1},
+            {SurfaceFlag.SURF_SLICK,0x2},
+            {SurfaceFlag.SURF_SKY,0x4},
+            {SurfaceFlag.SURF_LADDER,0x8},
+            {SurfaceFlag.SURF_NOIMPACT,0x10},
+            {SurfaceFlag.SURF_NOMARKS,0x20},
+            {SurfaceFlag.SURF_FLESH,0x40},
+            {SurfaceFlag.SURF_NODRAW,0x80},
+            {SurfaceFlag.SURF_HINT,0x100},
+            {SurfaceFlag.SURF_SKIP,0x200},
+            {SurfaceFlag.SURF_NOLIGHTMAP,0x400},
+            {SurfaceFlag.SURF_POINTLIGHT,0x800},
+            {SurfaceFlag.SURF_METALSTEPS,0x1000},
+            {SurfaceFlag.SURF_NOSTEPS,0x2000},
+            {SurfaceFlag.SURF_NONSOLID,0x4000},
+            {SurfaceFlag.SURF_LIGHTFILTER,0x8000},
+            {SurfaceFlag.SURF_ALPHASHADOW,0x10000},
+            {SurfaceFlag.SURF_NODLIGHT,0x20000},
         };
 
         static public UInt32 surfaceFlagsQ3ToJK2(UInt32 q3Flags)
@@ -280,6 +364,27 @@ namespace Q3ShaderPack
             }
             return retVal;
         }
+        static public UInt32 surfaceFlagsJK2ToQ3(UInt32 q3Flags)
+        {
+            UInt32 retVal = 0;
+            UInt32 a = 1;
+            for (int i = 0; i < 32; i++)
+            {
+                UInt32 bit = a << i;
+                if ((q3Flags & bit) > 0)
+                {
+                    if (jk2IntToSurfaceFlag.ContainsKey(bit))
+                    {
+                        SurfaceFlag flag = jk2IntToSurfaceFlag[bit];
+                        if (surfaceFlagToIntQ3.ContainsKey(flag))
+                        {
+                            retVal |= surfaceFlagToIntQ3[flag];
+                        }
+                    }
+                }
+            }
+            return retVal;
+        }
         static public UInt32 contentFlagsQ3ToJK2(UInt32 q3Flags)
         {
             UInt32 retVal = 0;
@@ -295,6 +400,27 @@ namespace Q3ShaderPack
                         if (contentFlagToIntJk2.ContainsKey(flag))
                         {
                             retVal |= contentFlagToIntJk2[flag];
+                        }
+                    }
+                }
+            }
+            return retVal;
+        }
+        static public UInt32 contentFlagsJK2ToQ3(UInt32 q3Flags)
+        {
+            UInt32 retVal = 0;
+            UInt32 a = 1;
+            for (int i = 0; i < 32; i++)
+            {
+                UInt32 bit = a << i;
+                if ((q3Flags & bit) > 0)
+                {
+                    if (jk2IntToContentFlag.ContainsKey(bit))
+                    {
+                        ContentFlag flag = jk2IntToContentFlag[bit];
+                        if (contentFlagToIntQ3.ContainsKey(flag))
+                        {
+                            retVal |= contentFlagToIntQ3[flag];
                         }
                     }
                 }
@@ -338,6 +464,45 @@ namespace Q3ShaderPack
                         shaderHere.contentFlags = contentFlagsQ3ToJK2(shaderHere.contentFlags);
 
                         Helpers.WriteTypeAsBytes(bw,shaderHere);
+                    }
+                }
+            }
+        }
+        public static void ConvertJK2FlagsToQ3Flags(Stream inStream, Stream outStream)
+        {
+            inStream.Seek(0, SeekOrigin.Begin);
+            outStream.Seek(0, SeekOrigin.Begin);
+
+            inStream.CopyTo(outStream);
+
+            inStream.Seek(0, SeekOrigin.Begin);
+            outStream.Seek(0, SeekOrigin.Begin);
+
+            using (BinaryReader br = new BinaryReader(inStream))
+            {
+                using (BinaryWriter bw = new BinaryWriter(outStream, Encoding.Latin1, true))
+                {
+                    dheader_t header = Helpers.ReadBytesAsType<dheader_t>(br);
+                    if (header.version != 1)
+                    {
+                        throw new Exception("BSP header version is not 1");
+                    }
+                    lump_t shadersLump = header.GetLump(LUMP_SHADERS);
+
+                    int shaderCount = shadersLump.filelen / Marshal.SizeOf(typeof(dshader_t));
+
+                    // Make look up table that quickly tells us what kind of shader a particular shader index is. Is it a system shader or sky shader? So we quickly see whether a surface should be considered as "walkable"
+                    ShaderType[] shaderTypeLUT = new ShaderType[shaderCount];
+                    br.BaseStream.Seek(shadersLump.fileofs, SeekOrigin.Begin);
+                    for (int i = 0; i < shaderCount; i++)
+                    {
+                        bw.BaseStream.Seek(br.BaseStream.Position, SeekOrigin.Begin);
+                        dshader_t shaderHere = Helpers.ReadBytesAsType<dshader_t>(br);
+
+                        shaderHere.surfaceFlags = surfaceFlagsJK2ToQ3(shaderHere.surfaceFlags);
+                        shaderHere.contentFlags = contentFlagsJK2ToQ3(shaderHere.contentFlags);
+
+                        Helpers.WriteTypeAsBytes(bw, shaderHere);
                     }
                 }
             }

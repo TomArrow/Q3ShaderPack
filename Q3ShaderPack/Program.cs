@@ -25,6 +25,7 @@ namespace Q3ShaderPack
             public bool used = false;
         }
 
+        static Regex q3shadefixRegex = new Regex(@"[\n\r]\s*(notc|glow)\s*[\n\r]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static bool convertQ3ToJk2Bsp(string fullPath, string basePath)
         {
             try
@@ -57,6 +58,41 @@ namespace Q3ShaderPack
                 return false;
             }
         }
+
+        static bool convertJk2ToQ3Bsp(string fullPath, string basePath)
+        {
+            try
+            {
+                var proc = new Process()
+                {
+                    StartInfo = new ProcessStartInfo()
+                    {
+                        Arguments = $"-fs_basepath \"{basePath}\" -convert -format quake3 -game jk2 \"{Path.GetFileName(fullPath)}\"",
+                        FileName = "q3map2",
+                        RedirectStandardError = true,
+                        RedirectStandardOutput = true,
+                        WorkingDirectory = Path.GetDirectoryName(fullPath)
+                    }
+                };
+                string debug = proc.StartInfo.Arguments.ToString();
+                Console.WriteLine(debug);
+                proc.Start();
+                string error = proc.StandardError.ReadToEnd();
+                Console.WriteLine(error);
+                string output = proc.StandardOutput.ReadToEnd();
+                Console.WriteLine(output);
+                proc.WaitForExit();
+                Console.WriteLine($"q3map2 conversion exited with code {proc.ExitCode}");
+                return proc.ExitCode == 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error converting bsp. Probably, q3map2 binary isn't in PATH. Error: {ex.ToString()}");
+                return false;
+            }
+        }
+
+
         //converts surface and content flags
         static void convertQ3FlagsToJK2Flags(string inFile, string outFile)
         {// no checks for errors here etc cuz im lazy
@@ -79,19 +115,41 @@ namespace Q3ShaderPack
             }
         }
 
+        static void convertJK2FlagsToQ3Flags(string inFile, string outFile)
+        {// no checks for errors here etc cuz im lazy
+            if (File.Exists(outFile))
+            {
+                File.Delete(outFile);
+            }
+            using (FileStream inStream = File.OpenRead(inFile))
+            {
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    BSPHelper.ConvertJK2FlagsToQ3Flags(inStream, ms);
+                    using (FileStream outStream = File.OpenWrite(outFile))
+                    {
+                        ms.Seek(0, SeekOrigin.Begin);
+                        outStream.Seek(0, SeekOrigin.Begin);
+                        ms.CopyTo(outStream);
+                    }
+                }
+            }
+        }
+
         // TODO Detect non power of 2 tex
         // TODO Detect not found files.
         static void Main(string[] args)
         {
             if(args.Length == 0)
             {
-                Console.WriteLine("Howto convert map from pk3: Q3ShaderPack <path_to_pk3> <path_to_q3_shader_folder> <path_to_shader_exclude_folder> out:out -ignoreShaderList -q32jk2");
+                Console.WriteLine("Howto convert map from pk3: Q3ShaderPack <path_to_pk3> <path_to_q3_shader_folder> <path_to_shader_exclude_folder> out:out -ignoreShaderList [-q32jk2|-jk22q3]");
                 Console.ReadKey();
             }
 
             // Todo show shader dupes
             int argIndex = 0;
             int folderIndex = 0;
+            List<string> bspFilesQ3 = new List<string>(); // need this separately for jk2 to q3 conversion so that one takes priority when copying
             List<string> bspFiles = new List<string>();
             List<string> mapFiles = new List<string>();
             List<string> sourcePk3Files = new List<string>();
@@ -112,6 +170,7 @@ namespace Q3ShaderPack
             bool ignoreShaderList = false;
             bool dontChangeImageSize = false;
             bool q3ToJk2Conversion = false;
+            bool jk2ToQ3Conversion = false;
             bool keepRawFiles = false;
             while (argIndex < args.Length)
             {
@@ -129,6 +188,11 @@ namespace Q3ShaderPack
                 if(argument.Equals("-q32jk2",StringComparison.InvariantCultureIgnoreCase))
                 {
                     q3ToJk2Conversion = true;
+                    continue;
+                }
+                if(argument.Equals("-jk22q3",StringComparison.InvariantCultureIgnoreCase))
+                {
+                    jk2ToQ3Conversion = true;
                     continue;
                 }
                 if(argument.Equals("-keepCollectedFiles", StringComparison.InvariantCultureIgnoreCase))
@@ -243,6 +307,44 @@ namespace Q3ShaderPack
                                 //File.Move(convertedname, outPath);
                                 convertQ3FlagsToJK2Flags(convertedname,outPath);
                                 bspFiles.Add(outPath);
+                                externalLightmapDirectories.Add(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(fullPathFile)), Path.GetFileNameWithoutExtension(fullPathFile)));
+                                fs.AddFolder(workDirName);
+                            }
+                            else if (jk2ToQ3Conversion)
+                            {
+                                string shaderDirToChoose = shaderDirectoriesForBasePath.Count > 0 ? shaderDirectoriesForBasePath[0] : (shaderDirectories.Count > 0 ? shaderDirectories[0] : null);
+                                if (shaderDirToChoose == null)
+                                {
+                                    Console.WriteLine(".bsp conversion failed. No suitable shader directories provided. Need at least 1.");
+                                    return;
+                                }
+                                string workDirName = "_tmp_mapconvert";
+                                Directory.CreateDirectory(workDirName);
+                                string outPath = Path.GetFullPath(Path.Combine(workDirName, entry.Name));
+                                fs.Copy(fullPathFile, $"{outPath}.tmp");
+                                convertJK2FlagsToQ3Flags($"{outPath}.tmp", outPath);
+                                File.Delete($"{outPath}.tmp");
+                                string convertedname = Path.GetFullPath(Path.Combine(workDirName, $"{Path.GetFileNameWithoutExtension(entry.Name)}_c{Path.GetExtension(entry.Name)}"));
+                                if (File.Exists(convertedname))
+                                {
+                                    File.Delete(convertedname);
+                                }
+                                string baseAssetsPath = "."; // MEH.
+                                if (shaderDirectoriesForBasePath.Count > 0)
+                                {
+                                    baseAssetsPath = Path.GetFullPath(Path.Combine(shaderDirectoriesForBasePath[0], "../../"));
+                                    baseAssetsPath = baseAssetsPath.Trim('\\');
+                                }
+                                if (!convertJk2ToQ3Bsp(outPath, baseAssetsPath))
+                                {
+                                    Console.WriteLine($"{outPath} conversion failed. Exiting.");
+                                    return;
+                                }
+                                File.Delete(outPath);
+                                File.Move(convertedname, outPath);
+                                //convertJK2FlagsToQ3Flags(convertedname,outPath);
+                                bspFilesQ3.Add(outPath); // we can't use the q3 file in the normal process because we do some analysis to find shaders, but we copy this first so it takes precedence. shitty, i know.
+                                bspFiles.Add(fullPathFile); // original jk2 file for analysis pass etc
                                 externalLightmapDirectories.Add(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(fullPathFile)), Path.GetFileNameWithoutExtension(fullPathFile)));
                                 fs.AddFolder(workDirName);
                             }
@@ -500,11 +602,17 @@ namespace Q3ShaderPack
 
             if (outputDirectory != null)
             {
+                string shaderFolder = jk2ToQ3Conversion ? "scripts" : "shaders";
                 string mainName = Path.GetFileNameWithoutExtension(bspFiles.Count == 0 ? mapFiles[0] : bspFiles[0]);
-                Directory.CreateDirectory(Path.Combine(outputDirectory,"shaders"));
+                Directory.CreateDirectory(Path.Combine(outputDirectory, shaderFolder));
                 if (!string.IsNullOrWhiteSpace(compiledShaders))
                 {
-                    File.WriteAllText(Path.Combine(outputDirectory, "shaders", $"{mainName}.shader"), compiledShaders);
+                    string shaderWrite = compiledShaders;
+                    if (jk2ToQ3Conversion)
+                    {
+                        shaderWrite = q3shadefixRegex.Replace(shaderWrite,"\n"); // dumb
+                    }
+                    File.WriteAllText(Path.Combine(outputDirectory, shaderFolder, $"{mainName}.shader"), shaderWrite);
                 }
 
                 // Copy special image files like lightImage and editorimage and .md3 models and audio files from .map alongside normal images
@@ -737,6 +845,16 @@ namespace Q3ShaderPack
                 string mapsDir = Path.Combine(outputDirectory, "maps");
                 Directory.CreateDirectory(mapsDir);
 
+                foreach(string bsp in bspFilesQ3) // jk2->q3 converted take priority, but we need the jk2 one for analysis in bspFiles
+                {
+                    string outPath = Path.Combine(mapsDir, Path.GetFileName(bsp));
+                    if (File.Exists(outPath))
+                    {
+                        Console.WriteLine($"{outPath} already exists.");
+                        continue;
+                    }
+                    fs.Copy(bsp, outPath);
+                }
                 foreach(string bsp in bspFiles)
                 {
                     string outPath = Path.Combine(mapsDir, Path.GetFileName(bsp));
