@@ -26,6 +26,7 @@ namespace Q3ShaderPack
         }
 
         static Regex q3shadefixRegex = new Regex(@"[\n\r]\s*(notc|glow)\s*[\n\r]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static Regex q3shadefixRegex2 = new Regex(@"[\n\r]\s*(surfaceSprites|ssFademax|ssfadescale|ssvariance|sswind|ssHangdown|ssFaceup|ssWindidle|ssVertSkew|ssFXDuration|ssFXGrow|ssFXAlphaRange|SsFXWeather)[^\n\r]*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static bool convertQ3ToJk2Bsp(string fullPath, string basePath)
         {
             try
@@ -611,6 +612,7 @@ namespace Q3ShaderPack
                     if (jk2ToQ3Conversion)
                     {
                         shaderWrite = q3shadefixRegex.Replace(shaderWrite,"\n"); // dumb
+                        shaderWrite = q3shadefixRegex2.Replace(shaderWrite,""); // dumb
                     }
                     File.WriteAllText(Path.Combine(outputDirectory, shaderFolder, $"{mainName}.shader"), shaderWrite);
                 }
